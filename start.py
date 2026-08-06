@@ -1,6 +1,5 @@
 import asyncio
 
-
 from as7341 import AS7341
 from web_socket import WebSocketClient
 from ws2812_light import WS2812Light
@@ -13,6 +12,13 @@ async def main():
         try:
             async with WebSocketClient(uri) as client:
                 print("客户端已启动")
+                await client.send(
+                    {
+                        "type": "socket",
+                        "action": "set-endpoint-name",
+                        "name": "device-esp32c3",
+                    }
+                )
                 ws2812_light = WS2812Light(client)
                 as7341 = AS7341(client)
                 asyncio.create_task(ws2812_light.on_connected())

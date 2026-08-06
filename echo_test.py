@@ -14,7 +14,7 @@ async def main():
                 string.ascii_letters + string.digits, k=random.randint(1, 200)
             )
         )
-        rsp = await send_command(f"echo {test_str}")
+        rsp = await send_command("desktop-control", f"echo {test_str}")
         assert rsp == test_str, (rsp, test_str)
 
 

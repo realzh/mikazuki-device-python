@@ -3,7 +3,7 @@ from json import loads
 from math import floor
 from uuid import uuid4
 
-from command import send_command
+import command
 from device import Device
 
 max_int_time = 0.1
@@ -12,6 +12,10 @@ adc_resolution_error_tolerance = 0.004
 gain_map = [0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 
 center_wave_length = [415, 445, 480, 515, 555, 590, 630, 680]
+
+
+async def send_command(command_str: str):
+    return await command.send_command("spectrum-test", command_str)
 
 
 def get_max_visible(measure_data):
@@ -194,7 +198,7 @@ async def measure_with_sensitivity_optimization():
 class AS7341(Device):
     type = "as7341"
 
-    id = "as7341"
+    device_id = "0"
 
     async def on_connected(self):
         await super().on_connected()
@@ -203,7 +207,7 @@ class AS7341(Device):
     async def on_message(self, message: dict):
 
         action = message.get("action")
-        if action == "measure-once":
+        if action == "measure":
             measurement_id = message.get("measurement_id", uuid4())
             print("measuring")
             result = await measure_with_sensitivity_optimization()
@@ -211,6 +215,7 @@ class AS7341(Device):
                 {
                     "action": "measure-result",
                     "measurement_id": measurement_id,
+                    "success": True,
                     "result": result,
                 }
             )

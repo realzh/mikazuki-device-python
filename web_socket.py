@@ -1,6 +1,7 @@
 import json
-import websockets
 from typing import Optional
+
+import websockets
 
 
 class WebSocketClient:

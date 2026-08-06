@@ -3,14 +3,14 @@ from web_socket import WebSocketClient
 
 class Device:
     type = "generic-device"
-    id = ""
+    device_id = ""
 
     def __init__(self, client: WebSocketClient) -> None:
         self.ws = client
 
     async def send(self, message: dict):
         message["type"] = self.type
-        message["id"] = self.id
+        message["device_id"] = self.device_id
         await self.ws.send(message)
 
     async def on_connected(self):
@@ -21,7 +21,7 @@ class Device:
 
     async def on_all_message(self, message: dict):
         type = message.get("type")
-        id = message.get("id")
-        if type != self.type or id != self.id:
+        device_id = message.get("device_id")
+        if type != self.type or device_id != self.device_id:
             return
         await self.on_message(message)

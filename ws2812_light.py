@@ -1,8 +1,9 @@
-import asyncio
-
-from command import assert_connection, send_command
+import command
 from device import Device
-from web_socket import WebSocketClient
+
+
+async def send_command(command_str: str):
+    return await command.send_command("desktop-control", command_str)
 
 
 status = "unknown"
@@ -10,20 +11,20 @@ status = "unknown"
 
 async def switch_on():
     global status
-    await send_command("ws2812_set warm 1.0 0 144 0")
+    await send_command("ws2812_set #FF9038 1.0 0 144 0")
     status = "on"
 
 
 async def switch_off():
     global status
-    await send_command("ws2812_set warm 0.0 0 144 0")
+    await send_command("ws2812_set #FF9038 0.0 0 144 0")
     status = "off"
 
 
 class WS2812Light(Device):
     type = "ws2812-light"
 
-    id = "ws2812-light-desktop"
+    device_id = "0"
 
     async def send_status(self):
         await self.send({"action": "status", "status": status})
