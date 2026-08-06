@@ -24,7 +24,7 @@ async def switch_off():
 class WS2812Light(Device):
     type = "ws2812-light"
 
-    device_id = "0"
+    device_id = "desktop"
 
     async def send_status(self):
         await self.send({"action": "status", "status": status})
