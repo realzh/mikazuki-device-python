@@ -11,13 +11,13 @@ status = "unknown"
 
 async def switch_on():
     global status
-    await send_command("ws2812_set #FF9038 1.0 0 144 0")
+    await send_command("ws2812_set #FF9038 0 144")
     status = "on"
 
 
 async def switch_off():
     global status
-    await send_command("ws2812_set #FF9038 0.0 0 144 0")
+    await send_command("ws2812_set #000000 0 144")
     status = "off"
 
 

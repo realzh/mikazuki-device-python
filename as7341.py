@@ -11,7 +11,7 @@ adc_resolution_error_tolerance = 0.004
 
 gain_map = [0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
 
-center_wave_length = [415, 445, 480, 515, 555, 590, 630, 680]
+wavelength = [415, 445, 480, 515, 555, 590, 630, 680]
 
 
 async def send_command(command_str: str):
@@ -45,7 +45,7 @@ async def measure_once():
         * (config["astep"] + 1)
         * 2.78e-6
     )
-    visible_light_power = [
+    raw_value = [
         data["F1"] / sensitivity,
         data["F2"] / sensitivity,
         data["F3"] / sensitivity,
@@ -62,8 +62,8 @@ async def measure_once():
         "sensitivity": sensitivity,
         "adc_fullscale": adc_fullscale,
         "visible_light_saturation": adc_value_visible_light_max == adc_fullscale,
-        "visible_light_power": visible_light_power,
-        "center_wave_length": center_wave_length,
+        "raw_value": raw_value,
+        "wavelength": wavelength,
         "adc_resolution_error": 1 / (adc_value_visible_light_max + 1),
     }
 
@@ -216,6 +216,6 @@ class AS7341(Device):
                     "action": "measure-result",
                     "measurement_id": measurement_id,
                     "success": True,
-                    "result": result,
+                    **result,
                 }
             )

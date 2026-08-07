@@ -49,15 +49,15 @@ for dev in devices:
 task_send_command_running = False
 
 
-async def task_send_command(id: str):
+async def task_send_command(esp32c3_id: str):
     while True:
-        cmd = await command_queues[id].get()
+        cmd = await command_queues[esp32c3_id].get()
         # print(f"from queue {cmd}")
-        result = await asyncio.to_thread(sync_send_command, id, cmd["command"])
+        result = await asyncio.to_thread(sync_send_command, esp32c3_id, cmd["command"])
         cmd["future"].set_result(result)
 
 
-async def send_command(id: str, command: str) -> str:
+async def send_command(esp32c3_id: str, command: str) -> str:
     # print("send_command", command)
     global task_send_command_running
     if not task_send_command_running:
@@ -65,7 +65,7 @@ async def send_command(id: str, command: str) -> str:
             asyncio.create_task(task_send_command(dev["id"]))
         task_send_command_running = True
     future = asyncio.Future[str]()
-    await command_queues[id].put({"command": command, "future": future})
+    await command_queues[esp32c3_id].put({"command": command, "future": future})
     return await future
 
 
