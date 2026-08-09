@@ -14,10 +14,6 @@ class WS2812(Device):
 
     device_id = "spectrum-test"
 
-    async def on_connected(self):
-        await super().on_connected()
-        await send_command("ws2812_init")
-
     async def on_message(self, message: dict):
         action = message.get("action")
         if action == "set":

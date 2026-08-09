@@ -31,7 +31,6 @@ class WS2812Light(Device):
 
     async def on_connected(self):
         await super().on_connected()
-        await send_command("ws2812_init")
         await self.send({"action": "name", "name": "Desktop"})
         await self.send_status()
 
