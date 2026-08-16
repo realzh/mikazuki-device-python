@@ -4,7 +4,6 @@ from typing import Dict
 from serial import Serial
 import serial.tools.list_ports
 
-
 devices = [
     {
         "id": "desktop-control",
@@ -31,13 +30,14 @@ for p in serial.tools.list_ports.comports():
 def sync_send_command(id: str, command: str) -> str:
     port = ports.get(id)
     assert port is not None, f"未找到设备 {id} 的串口连接"
+    print(f"esp32c3 {id} send {command}")
     port.write(command.encode("utf-8") + b"\n")
     while True:
         line = port.readline().decode().strip()
         if not line.startswith("rsp| "):
             continue
         rsp = line[5:]
-        # print(f"result {rsp}")
+        print(f"esp32c3 {id} receive {rsp}")
         return rsp
 
 
