@@ -57,7 +57,7 @@ async def task_send_command(esp32c3_id: str):
         cmd["future"].set_result(result)
 
 
-async def send_command(esp32c3_id: str, command: str) -> str:
+async def send_command(esp32c3_id: str, command: str, assert_success=False) -> str:
     # print("send_command", command)
     global task_send_command_running
     if not task_send_command_running:
@@ -66,7 +66,10 @@ async def send_command(esp32c3_id: str, command: str) -> str:
         task_send_command_running = True
     future = asyncio.Future[str]()
     await command_queues[esp32c3_id].put({"command": command, "future": future})
-    return await future
+    result = await future
+    if assert_success and not result.startswith("OK"):
+        raise Exception(f"command {command} to {esp32c3_id} failed")
+    return result
 
 
 async def assert_connection(id: str):

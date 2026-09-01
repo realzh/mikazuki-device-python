@@ -1,23 +1,31 @@
 import command
-from device import Device
-
-
-async def send_command(command_str: str):
-    return await command.send_command("spectrum-test", command_str)
-
-
-status = "unknown"
+from device import Device, action
+from web_socket import WebSocketClient
 
 
 class WS2812(Device):
-    type = "ws2812"
 
-    device_id = "spectrum-test"
+    def __init__(self, ws: WebSocketClient, device_id: str, esp32c3_id: str) -> None:
+        super().__init__(ws, device_id)
+        self.esp32c3_id = esp32c3_id
 
-    async def on_message(self, message: dict):
-        action = message.get("action")
-        if action == "set":
-            color = message.get("color", "#000000")
-            offset = message.get("offset", 0)
-            count = message.get("count", 0)
-            await send_command(f"ws2812_set {color} {offset} {count}")
+    @action(method="post")
+    async def set(self, *, color: str, offset: int = 0, count: int):
+        esp32_response = await command.send_command(
+            self.esp32c3_id, f"ws2812_set {color} {offset} {count}", assert_success=True
+        )
+        return {"esp32_response": esp32_response}
+
+    @action(method="post")
+    async def on(self):
+        esp32_response = await command.send_command(
+            self.esp32c3_id, f"ws2812_set #FF9038 0 144", assert_success=True
+        )
+        return {"esp32_response": esp32_response}
+
+    @action(method="post")
+    async def off(self):
+        esp32_response = await command.send_command(
+            self.esp32c3_id, f"ws2812_set #000000 0 144", assert_success=True
+        )
+        return {"esp32_response": esp32_response}

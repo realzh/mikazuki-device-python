@@ -24,21 +24,7 @@ async def main():
                 )
 
                 devices: list[Device] = [
-                    WS2812Light(client),
-                    AS7341(client),
-                    WS2812(client),
-                    DS18B20(
-                        client,
-                        esp32c3_id="desktop-control",
-                        device_id="desktop_light_temperature",
-                        ds18b20_id="0x0800000075660628",
-                    ),
-                    DS18B20(
-                        client,
-                        esp32c3_id="spectrum-test",
-                        device_id="ws2812_temperature",
-                        ds18b20_id="0x5200000074346628",
-                    ),
+                    WS2812(client, "ws2812-desktop", "desktop-control"),
                 ]
                 for device in devices:
                     asyncio.create_task(device.on_connected())
