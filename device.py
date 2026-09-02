@@ -141,3 +141,6 @@ class Device:
             params[param_def["name"]] = param_value
         result = await handler(**params)
         return result or {}
+
+    async def set_state(self, key: str, value):
+        await self.send({"action": "set-state", "key": key, "value": value})

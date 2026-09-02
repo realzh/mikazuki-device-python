@@ -9,12 +9,18 @@ class WS2812(Device):
         super().__init__(ws, device_id)
         self.esp32c3_id = esp32c3_id
 
+    async def on_connected(self):
+        await super().on_connected()
+        await self.set_state("state", "ready")
+
     @action(method="post")
     async def set(self, *, color: str, offset: int = 0, count: int):
         """Set the color of ws2812"""
         esp32_response = await command.send_command(
             self.esp32c3_id, f"ws2812_set {color} {offset} {count}", assert_success=True
         )
+        await self.set_state("tag", color)
+        await self.set_state("tag_color", color)
         return {"esp32_response": esp32_response}
 
     @action(method="post")
@@ -23,6 +29,8 @@ class WS2812(Device):
         esp32_response = await command.send_command(
             self.esp32c3_id, f"ws2812_set #FF9038 0 144", assert_success=True
         )
+        await self.set_state("tag", "on")
+        await self.set_state("tag_color", "green")
         return {"esp32_response": esp32_response}
 
     @action(method="post")
@@ -31,4 +39,6 @@ class WS2812(Device):
         esp32_response = await command.send_command(
             self.esp32c3_id, f"ws2812_set #000000 0 144", assert_success=True
         )
+        await self.set_state("tag", "off")
+        await self.set_state("tag_color", "gray")
         return {"esp32_response": esp32_response}
