@@ -11,6 +11,7 @@ class WS2812(Device):
 
     @action(method="post")
     async def set(self, *, color: str, offset: int = 0, count: int):
+        """Set the color of ws2812"""
         esp32_response = await command.send_command(
             self.esp32c3_id, f"ws2812_set {color} {offset} {count}", assert_success=True
         )
@@ -18,6 +19,7 @@ class WS2812(Device):
 
     @action(method="post")
     async def on(self):
+        """Switch on ws2812, color is #FF9038"""
         esp32_response = await command.send_command(
             self.esp32c3_id, f"ws2812_set #FF9038 0 144", assert_success=True
         )
@@ -25,6 +27,7 @@ class WS2812(Device):
 
     @action(method="post")
     async def off(self):
+        """Switch off ws2812"""
         esp32_response = await command.send_command(
             self.esp32c3_id, f"ws2812_set #000000 0 144", assert_success=True
         )

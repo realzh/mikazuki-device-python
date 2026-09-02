@@ -2,11 +2,16 @@ import inspect
 
 from web_socket import WebSocketClient
 
+action_index = 0
+
 
 def action(method="get"):
     def decorator(func):
+        global action_index
+        action_index += 1
         func.is_action = True
         func.http_method = method
+        func.action_index = action_index
         return func
 
     return decorator
@@ -55,8 +60,11 @@ class Device:
                         "method": http_method,
                         "handler": python_method,
                         "parameters": parameters,
+                        "description": python_method.__doc__,
+                        "action_index": python_method.action_index,
                     }
                 )
+        self.actions.sort(key=lambda x: x["action_index"])
 
     async def send(self, message: dict):
         message["type"] = "device"
@@ -79,6 +87,7 @@ class Device:
                         }
                         for x in action["parameters"]
                     ],
+                    "description": action["description"],
                 }
             )
 
