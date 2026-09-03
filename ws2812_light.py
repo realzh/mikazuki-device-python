@@ -1,9 +1,9 @@
-import command
+import esp32_command
 from device import Device
 
 
 async def send_command(command_str: str):
-    return await command.send_command("desktop-control", command_str)
+    return await esp32_command.send_command("desktop-control", command_str)
 
 
 status = "unknown"

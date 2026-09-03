@@ -1,7 +1,7 @@
 import json
 from uuid import uuid4
 
-import command
+import esp32_command
 from device import Device
 from web_socket import WebSocketClient
 
@@ -18,7 +18,7 @@ class DS18B20(Device):
         self.ds18b20_id = ds18b20_id
 
     async def send_command(self, command_str: str):
-        return await command.send_command(self.esp32c3_id, command_str)
+        return await esp32_command.send_command(self.esp32c3_id, command_str)
 
     async def measure(self):
         result = json.loads(await self.send_command("ds18b20_measure"))

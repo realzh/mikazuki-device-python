@@ -3,7 +3,7 @@ import random
 import string
 from tqdm import tqdm
 
-from command import send_command
+from esp32_command import send_command
 
 
 async def main():

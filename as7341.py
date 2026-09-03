@@ -3,7 +3,7 @@ from json import loads
 from math import floor
 from uuid import uuid4
 
-import command
+import esp32_command
 from device import Device
 
 max_int_time = 0.1
@@ -15,7 +15,7 @@ wavelength = [415, 445, 480, 515, 555, 590, 630, 680]
 
 
 async def send_command(command_str: str):
-    return await command.send_command("spectrum-test", command_str)
+    return await esp32_command.send_command("spectrum-test", command_str)
 
 
 def get_max_visible(measure_data):
