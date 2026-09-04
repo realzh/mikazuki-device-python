@@ -1,28 +1,29 @@
-import esp32_command
-from device import Device, action
-from web_socket import WebSocketClient
+import esp32
+from device import AsyncSend, Device, action
 
 
 class WS2812(Device):
 
     def __init__(
         self,
-        ws: WebSocketClient,
-        device_id: str,
-        esp32_send_command: esp32_command.AsyncSendCommand,
+        *,
+        esp32_send_command: esp32.AsyncSendCommand,
+        gpio_num: int,
+        **kwargs,
     ) -> None:
-        super().__init__(ws, device_id)
+        super().__init__(**kwargs)
         self.esp32_send_command = esp32_send_command
+        self.gpio_num = gpio_num
 
     async def on_connected(self):
         await super().on_connected()
         await self.set_state("state", "ready")
 
     @action(method="post")
-    async def set(self, *, color: str, offset: int = 0, count: int):
+    async def set(self, *, color: str, count: int):
         """Set the color of ws2812"""
         esp32_response = await self.esp32_send_command(
-            f"ws2812_set {color} {offset} {count}"
+            f"ws2812_set_single_color {self.gpio_num} {color} {count}"
         )
         await self.set_state("tag", color)
         await self.set_state("tag_color", color)
@@ -31,7 +32,9 @@ class WS2812(Device):
     @action(method="post")
     async def on(self):
         """Switch on ws2812, color is #FF9038"""
-        esp32_response = await self.esp32_send_command(f"ws2812_set #FF9038 0 144")
+        esp32_response = await self.esp32_send_command(
+            f"ws2812_set_single_color {self.gpio_num} #FF9038 144"
+        )
         await self.set_state("tag", "on")
         await self.set_state("tag_color", "green")
         return {"esp32_response": esp32_response}
@@ -39,7 +42,9 @@ class WS2812(Device):
     @action(method="post")
     async def off(self):
         """Switch off ws2812"""
-        esp32_response = await self.esp32_send_command(f"ws2812_set #000000 0 144")
+        esp32_response = await self.esp32_send_command(
+            f"ws2812_set_single_color {self.gpio_num} #000000 144"
+        )
         await self.set_state("tag", "off")
         await self.set_state("tag_color", "gray")
         return {"esp32_response": esp32_response}

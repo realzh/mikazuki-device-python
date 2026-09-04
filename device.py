@@ -1,6 +1,7 @@
 import inspect
+from typing import Awaitable, Callable
 
-from web_socket import WebSocketClient
+AsyncSend = Callable[[dict], Awaitable[None]]
 
 action_index = 0
 
@@ -29,10 +30,22 @@ def type_to_string(type):
     return str(type)
 
 
+def string_to_type(type):
+    if type == "string":
+        return str
+    if type == "integer":
+        return int
+    if type == "boolean":
+        return bool
+    if type == "float":
+        return float
+    return
+
+
 class Device:
 
-    def __init__(self, ws: WebSocketClient, device_id: str) -> None:
-        self.ws = ws
+    def __init__(self, *, socket_send: AsyncSend, device_id: str) -> None:
+        self.socket_send = socket_send
         self.device_id = device_id
         self.actions = []
         self.collect_actions()
@@ -69,14 +82,13 @@ class Device:
     async def send(self, message: dict):
         message["type"] = "device"
         message["device_id"] = self.device_id
-        await self.ws.send(message)
+        await self.socket_send(message)
 
-    async def on_connected(self):
-        await self.send({"action": "register"})
+    async def send_action_definitions(self):
+        actions = []
         for action in self.actions:
-            await self.send(
+            actions.append(
                 {
-                    "action": "register-action",
                     "name": action["action"],
                     "method": action["method"],
                     "parameters": [
@@ -85,18 +97,16 @@ class Device:
                             "type": x["type_str"],
                             "optional": x["optional"],
                         }
-                        for x in action["parameters"]
+                        for x in action.get("parameters", [])
                     ],
-                    "description": action["description"],
+                    "description": action.get("description"),
                 }
             )
+        await self.send({"action": "set-actions", "actions": actions})
 
-    async def on_all_message(self, message: dict):
-        type = message.get("type")
-        device_id = message.get("device_id")
-        if type != "device" or device_id != self.device_id:
-            return
-        await self.on_message(message)
+    async def on_connected(self):
+        await self.send({"action": "register"})
+        await self.send_action_definitions()
 
     async def on_message(self, message: dict):
         type = message.get("type")
