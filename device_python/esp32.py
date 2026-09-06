@@ -3,15 +3,13 @@ from typing import Awaitable, Callable
 
 
 import asyncio
-import uuid
 
 
 from serial import Serial
 import serial.tools.list_ports
 
-import device
 
-from device import AsyncSend, Device, string_to_type
+from .device import AsyncSend, Device, string_to_type
 
 AsyncSendCommand = Callable[[str], Awaitable[str]]
 

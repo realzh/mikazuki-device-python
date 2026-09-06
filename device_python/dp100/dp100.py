@@ -1,11 +1,8 @@
-import asyncio
-import json
 import os
 
 import pathlib
-from typing import Awaitable, Callable
 
-from device import AsyncSend, Device, action
+from ..device import AsyncSend, Device, action
 
 os.environ["PYTHONNET_RUNTIME"] = "coreclr"
 

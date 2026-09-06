@@ -1,5 +1,5 @@
-import esp32
-from device import AsyncSend, Device, action
+from . import esp32
+from .device import AsyncSend, Device, action
 
 
 class WS2812(Device):
