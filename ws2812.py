@@ -17,7 +17,6 @@ class WS2812(Device):
 
     async def on_connected(self):
         await super().on_connected()
-        await self.set_state("state", "ready")
 
     @action(method="post")
     async def set(self, *, color: str, count: int):
@@ -25,8 +24,7 @@ class WS2812(Device):
         esp32_response = await self.esp32_send_command(
             f"ws2812_set_single_color {self.gpio_num} {color} {count}"
         )
-        await self.set_state("tag", color)
-        await self.set_state("tag_color", color)
+        await self.set_state("color", color)
         return {"esp32_response": esp32_response}
 
     @action(method="post")
@@ -35,8 +33,7 @@ class WS2812(Device):
         esp32_response = await self.esp32_send_command(
             f"ws2812_set_single_color {self.gpio_num} #FF9038 144"
         )
-        await self.set_state("tag", "on")
-        await self.set_state("tag_color", "green")
+        await self.set_state("color", "#FF9038")
         return {"esp32_response": esp32_response}
 
     @action(method="post")
@@ -45,6 +42,5 @@ class WS2812(Device):
         esp32_response = await self.esp32_send_command(
             f"ws2812_set_single_color {self.gpio_num} #000000 144"
         )
-        await self.set_state("tag", "off")
-        await self.set_state("tag_color", "gray")
+        await self.set_state("color", "#000000")
         return {"esp32_response": esp32_response}

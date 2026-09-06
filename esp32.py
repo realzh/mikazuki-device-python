@@ -113,7 +113,6 @@ class ESP32(Device):
     async def on_connected(self):
         await super().on_connected()
         commands = json.loads(await self.esp32_device["send_command"]("get_commands"))
-        await self.set_state("commands", commands)
         for command in commands:
             arg_strs = [
                 x for x in command["arguments_description"].split(" ") if x != ""
@@ -162,6 +161,8 @@ class ESP32(Device):
             }
             self.actions.append(action)
         await self.send_action_definitions()
+        features = await self.esp32_device["send_command"]("get_state features")
+        await self.set_state("features", features)
 
 
 if __name__ == "__main__":

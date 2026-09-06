@@ -105,8 +105,12 @@ class Device:
         await self.send({"action": "set-actions", "actions": actions})
 
     async def on_connected(self):
+        print(f"Device {self.device_id} connected")
         await self.send({"action": "register"})
         await self.send_action_definitions()
+
+    async def on_disconnected(self):
+        print(f"Device {self.device_id} disconnected")
 
     async def on_message(self, message: dict):
         type = message.get("type")
