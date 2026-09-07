@@ -147,7 +147,7 @@ class ESP32(Device):
                         resposne = json.loads(resposne)
                     except Exception:
                         pass
-                    return {"esp32_response": resposne}
+                    return resposne
 
                 return handler
 

@@ -1,12 +1,13 @@
 import inspect
-from typing import Awaitable, Callable
+import traceback
+from typing import Awaitable, Callable, Literal
 
 AsyncSend = Callable[[dict], Awaitable[None]]
 
 action_index = 0
 
 
-def action(method="get"):
+def action(method: Literal["get"] | Literal["post"]):
     def decorator(func):
         global action_index
         action_index += 1
@@ -126,13 +127,22 @@ class Device:
         if request_id and action and method:
             try:
                 result = await self.on_request(action, method, message)
-                await self.send({"request_id": request_id, "success": True, **result})
-            except Exception as e:
                 await self.send(
-                    {"request_id": request_id, "success": False, "reason": str(e)}
+                    {"request_id": request_id, "success": True, "result": result}
+                )
+            except Exception as e:
+                stacktrace = traceback.format_exc()
+
+                await self.send(
+                    {
+                        "request_id": request_id,
+                        "success": False,
+                        "reason": str(e),
+                        "stacktrace": str(stacktrace),
+                    }
                 )
 
-    async def on_request(self, action: str, method: str, message: dict) -> dict:
+    async def on_request(self, action: str, method: str, message: dict):
         fount_action = None
         for action_def in self.actions:
             if action == action_def["action"] and method == action_def["method"]:
@@ -154,7 +164,7 @@ class Device:
                 )
             params[param_def["name"]] = param_value
         result = await handler(**params)
-        return result or {}
+        return result
 
     async def set_state(self, key: str, value):
         await self.send({"action": "set-state", "key": key, "value": value})

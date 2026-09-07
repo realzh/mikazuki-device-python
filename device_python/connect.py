@@ -2,6 +2,8 @@ import json
 import traceback
 
 import websockets
+
+from .flameeye import Flameeye, ADB
 from .device import Device
 from .dp100.dp100 import DP100
 from . import esp32
@@ -40,12 +42,17 @@ async def ws_session():
                         )
                         devices.append(device_ws2812)
                         await device_ws2812.on_connected()
-            device_dp100 = DP100(
-                socket_send=socket_send,
-                device_id=f"dp100-0",
-            )
-            devices.append(device_dp100)
-            await device_dp100.on_connected()
+
+            singlton_devices = [DP100, Flameeye, ADB]
+            for dev_class in singlton_devices:
+                dev = dev_class(
+                    socket_send=socket_send,
+                    device_id=f'{dev_class.__name__.lower()}-0'
+                )
+                devices.append(dev)
+                await dev.on_connected()
+
+
             while True:
                 message_json = await ws.recv()
                 print(f"ws | {message_json}")

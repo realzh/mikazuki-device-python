@@ -2,7 +2,7 @@ import os
 
 import pathlib
 
-from ..device import AsyncSend, Device, action
+from device_python.device import Device, action
 
 os.environ["PYTHONNET_RUNTIME"] = "coreclr"
 
