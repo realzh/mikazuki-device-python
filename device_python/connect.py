@@ -43,8 +43,8 @@ async def ws_session():
                         devices.append(device_ws2812)
                         await device_ws2812.on_connected()
 
-            singlton_devices = [DP100, Flameeye, ADB]
-            for dev_class in singlton_devices:
+            singleton_devices = [DP100, Flameeye, ADB]
+            for dev_class in singleton_devices:
                 dev = dev_class(
                     socket_send=socket_send,
                     device_id=f'{dev_class.__name__.lower()}-0'

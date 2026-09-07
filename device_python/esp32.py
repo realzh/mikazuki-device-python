@@ -132,13 +132,11 @@ class ESP32(Device):
                     }
                 )
 
-            def handler_wrapper():
-                this_command = command
-                this_parameters = parameters
+            def handler_closure(command=command, parameters=parameters):
 
                 async def handler(**kwargs):
-                    s = f"{this_command['command']}"
-                    for param in this_parameters:
+                    s = f"{command['command']}"
+                    for param in parameters:
                         param_name = param["name"]
                         type_class = param["type"]
                         s += f" {type_class(kwargs[param_name])}"
@@ -154,7 +152,7 @@ class ESP32(Device):
             action = {
                 "action": f"esp_{command['command']}",
                 "method": "post",
-                "handler": handler_wrapper(),
+                "handler": handler_closure(),
                 "parameters": parameters,
             }
             self.actions.append(action)
