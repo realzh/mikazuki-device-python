@@ -1,10 +1,11 @@
-from collections import defaultdict
 import json
 import os
-from pathlib import Path
 import shutil
-from PIL import Image, ImageDraw, ImageFont, ImageChops
+from collections import defaultdict
+from pathlib import Path
+
 import numpy as np
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 templates = defaultdict(dict)
 conditions: dict[str, list[dict]] = defaultdict(list)

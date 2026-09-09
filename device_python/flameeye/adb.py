@@ -1,8 +1,7 @@
 import asyncio
 import pathlib
-import sys
-from datetime import datetime
 import tempfile
+from datetime import datetime
 from uuid import uuid4
 
 from device_python.device import Device, action

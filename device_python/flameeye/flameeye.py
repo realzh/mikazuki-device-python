@@ -1,4 +1,6 @@
-from device_python.device import Device, action as device_action
+from device_python.device import Device
+from device_python.device import action as device_action
+
 from . import action
 
 

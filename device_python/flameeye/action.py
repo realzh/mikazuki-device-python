@@ -1,9 +1,10 @@
 import json
 import time
 
-import numpy as np
-from . import adb, templates
 import aiosqlite
+import numpy as np
+
+from . import adb, templates
 
 android_db_path = "/storage/emulated/0/Android/data/tech.torchbearer.flameeye/apps/__UNI__AC0AA31/doc/spectrometer.db"
 
@@ -15,9 +16,9 @@ async def match_condition(condition: str):
         result = templates.match_condition(screen, condition)
         print("OK" if result else "ERROR")
         return result
-    except Exception as e:
+    except Exception:
         print("ERROR")
-        raise e
+        raise
 
 
 async def assert_condition(condition: str, error_message: str | None = None):

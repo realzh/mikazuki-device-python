@@ -1,5 +1,4 @@
 import os
-
 import pathlib
 
 from device_python.device import Device, action
@@ -8,9 +7,7 @@ os.environ["PYTHONNET_RUNTIME"] = "coreclr"
 
 dll_path = str(pathlib.Path(__file__).parent.joinpath("lib/ATKDP100DLL.dll").absolute())
 
-import pythonnet, clr
-
-from contextlib import contextmanager
+import clr
 
 clr.AddReference(dll_path)  # type: ignore
 
@@ -74,7 +71,7 @@ class DP100(Device):
             device_state,
         )
         if not success:
-            raise Exception(f"ATKDP100API GetDevInfo failed")
+            raise Exception("ATKDP100API GetDevInfo failed")
 
         (
             success,

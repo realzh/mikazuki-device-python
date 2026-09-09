@@ -1,11 +1,12 @@
-from dataclasses import dataclass
 import inspect
 import traceback
-from typing import Any, Awaitable, Callable, Literal, Optional
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from bidict import bidict
 
-AsyncSend = Callable[[dict], Awaitable[None]]
+from .connection import Connection
 
 action_index = 0
 
@@ -38,20 +39,21 @@ class Parameter:
 class Action:
     name: str
     parameters: list[Parameter]
-    description: Optional[str]
+    description: str | None
     handler: Callable[..., Awaitable[Any]]
 
 
 class Device:
 
-    def __init__(self, *, socket_send: AsyncSend, device_id: str | None = None) -> None:
-        self.socket_send = socket_send
+    def __init__(self, *, ws_connection: Connection, device_id: str | None = None):
+        self.ws_connection = ws_connection
         self.device_id = device_id
         self.actions: list[Action] = []
 
     async def open(self):
         assert self.device_id is not None
         print(f"Device {self.device_id} open")
+        self.ws_connection.message_listeners.add(self.on_message)
         self.generate_actions_from_decorators()
         await self.send({"action": "register"})
         self.actions.extend(self.generate_actions_from_decorators())
@@ -59,6 +61,11 @@ class Device:
 
     async def close(self):
         print(f"Device {self.device_id} close")
+        try:
+            await self.send({"action": "unregister"})
+        except:
+            pass
+        self.ws_connection.message_listeners.remove(self.on_message)
 
     async def __aenter__(self):
         await self.open()
@@ -97,7 +104,7 @@ class Device:
     async def send(self, message: dict):
         message["type"] = "device"
         message["device_id"] = self.device_id
-        await self.socket_send(message)
+        await self.ws_connection.send(message)
 
     async def send_action_definitions(self):
         actions_dict = []
@@ -162,7 +169,7 @@ class Device:
 
         parameters = message.get("parameters")
         if not isinstance(parameters, dict):
-            raise Exception(f"parameters is not dict")
+            raise Exception("parameters is not dict")
 
         params = {}
         for param_def in action_def.parameters:

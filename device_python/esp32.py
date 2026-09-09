@@ -1,17 +1,13 @@
-from contextlib import AsyncExitStack, asynccontextmanager
-import json
-from typing import Awaitable, Callable
-
-
 import asyncio
-
+import json
 
 import serial.tools.list_ports
 
-from .device import AsyncSend, Device
 from device_python import device
 
-AsyncSendCommand = Callable[[str], Awaitable[str]]
+from .connection import Connection
+from .device import Device, action
+from .ws2812 import WS2812
 
 
 class Command:
@@ -102,12 +98,13 @@ async def enumerate_device_ports():
 
 class ESP32WSDevice(Device):
 
-    def __init__(self, *, socket_send: AsyncSend, esp32_device_port: str) -> None:
+    def __init__(self, *, ws_connection: Connection, esp32_device_port: str) -> None:
         super().__init__(
-            socket_send=socket_send,
+            ws_connection=ws_connection,
             device_id=None,
         )
         self.esp32_device_port = esp32_device_port
+        self.sub_devices = set[Device]()
 
     async def open(self):
         self.esp32_device = ESP32Device(self.esp32_device_port)
@@ -117,13 +114,14 @@ class ESP32WSDevice(Device):
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)
         await self.send_action_definitions()
-        features = await self.esp32_device.send_command("get_state features")
-        features = features.split(",")
-        await self.set_state("features", features)
+        await self.create_devices_from_features()
 
     async def close(self):
         await super().close()
         await self.esp32_device.close()
+        while self.sub_devices:
+            sub_device = self.sub_devices.pop()
+            await sub_device.close()
 
     async def generate_action_handler_from_command(self, command: dict):
 
@@ -160,25 +158,37 @@ class ESP32WSDevice(Device):
             actions.append(action)
         return actions
 
-
-@asynccontextmanager
-async def create_esp32_ws_devices(socket_send: AsyncSend):
-    ports = await enumerate_device_ports()
-    devices: list[ESP32WSDevice] = []
-
-    async with AsyncExitStack() as stack:
-
-        for port in ports:
-
-            device = await stack.enter_async_context(
-                ESP32WSDevice(
-                    socket_send=socket_send,
-                    esp32_device_port=port,
+    @action
+    async def create_devices_from_features(self):
+        while self.sub_devices:
+            sub_device = self.sub_devices.pop()
+            await sub_device.close()
+        features = await self.esp32_device.send_command("get_state features")
+        features = [x.strip() for x in features.split(",")]
+        await self.set_state("features", features)
+        for feature in features:
+            if feature == "ws2812":
+                sub_device = WS2812(
+                    ws_connection=self.ws_connection,
+                    device_id=f"ws2812-{self.esp32_device.serial_number}",
+                    esp32_send_command=self.esp32_device.send_command,
+                    gpio_num=38,
                 )
-            )
-            devices.append(device)
+                await sub_device.open()
+                self.sub_devices.add(sub_device)
 
-        yield devices
+
+async def create_esp32_ws_devices(ws_connection: Connection):
+    ports = await enumerate_device_ports()
+
+    for port in ports:
+
+        await ws_connection.context.enter_async_context(
+            ESP32WSDevice(
+                ws_connection=ws_connection,
+                esp32_device_port=port,
+            )
+        )
 
 
 async def main():

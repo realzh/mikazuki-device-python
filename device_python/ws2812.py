@@ -1,5 +1,8 @@
-from . import esp32
-from .device import AsyncSend, Device, action
+
+from device_python.connection import Connection
+from device_python.types import Async
+
+from .device import Device, action
 
 
 class WS2812(Device):
@@ -7,11 +10,12 @@ class WS2812(Device):
     def __init__(
         self,
         *,
-        esp32_send_command: esp32.AsyncSendCommand,
+        ws_connection: Connection,
+        device_id: str | None = None,
+        esp32_send_command: Async[str, str],
         gpio_num: int,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(ws_connection=ws_connection, device_id=device_id)
         self.esp32_send_command = esp32_send_command
         self.gpio_num = gpio_num
 
