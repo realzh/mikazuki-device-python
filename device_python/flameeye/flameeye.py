@@ -4,6 +4,6 @@ from . import action
 
 class Flameeye(Device):
 
-    @device_action("get")
+    @device_action
     async def measure(self):
         return await action.measure()

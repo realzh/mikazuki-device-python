@@ -69,13 +69,13 @@ class ADB(Device):
         except:
             pass
 
-    @action("get")
+    @action
     async def get_device_name(self):
 
         device_name = await run_command("adb shell settings get global device_name")
         await self.set_state("device_name", device_name)
         return device_name
 
-    @action("post")
+    @action
     async def connect_to_device(self, pair_code: str, ip: str, port: str):
         return await run_command(f'echo "{pair_code}" | adb pair {ip}:{port}')

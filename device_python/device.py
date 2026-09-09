@@ -1,84 +1,98 @@
+from dataclasses import dataclass
 import inspect
 import traceback
-from typing import Awaitable, Callable, Literal
+from typing import Any, Awaitable, Callable, Literal, Optional
+
+from bidict import bidict
 
 AsyncSend = Callable[[dict], Awaitable[None]]
 
 action_index = 0
 
 
-def action(method: Literal["get"] | Literal["post"]):
-    def decorator(func):
-        global action_index
-        action_index += 1
-        func.is_action = True
-        func.http_method = method
-        func.action_index = action_index
-        return func
+def action(func):
 
-    return decorator
+    func.is_action = True
+
+    return func
 
 
-def type_to_string(type):
-    if type == str:
-        return "string"
-    if type == int:
-        return "integer"
-    if type == bool:
-        return "boolean"
-    if type == float:
-        return "float"
-    return str(type)
+parameter_types = bidict(
+    {
+        "string": str,
+        "integer": int,
+        "boolean": bool,
+        "float": float,
+    }
+)
 
 
-def string_to_type(type):
-    if type == "string":
-        return str
-    if type == "integer":
-        return int
-    if type == "boolean":
-        return bool
-    if type == "float":
-        return float
-    return
+@dataclass
+class Parameter:
+    name: str
+    type: str
+    optional: bool
+
+
+@dataclass
+class Action:
+    name: str
+    parameters: list[Parameter]
+    description: Optional[str]
+    handler: Callable[..., Awaitable[Any]]
 
 
 class Device:
 
-    def __init__(self, *, socket_send: AsyncSend, device_id: str) -> None:
+    def __init__(self, *, socket_send: AsyncSend, device_id: str | None = None) -> None:
         self.socket_send = socket_send
         self.device_id = device_id
-        self.actions = []
-        self.collect_actions()
+        self.actions: list[Action] = []
 
-    def collect_actions(self):
+    async def open(self):
+        assert self.device_id is not None
+        print(f"Device {self.device_id} open")
+        self.generate_actions_from_decorators()
+        await self.send({"action": "register"})
+        self.actions.extend(self.generate_actions_from_decorators())
+        await self.send_action_definitions()
+
+    async def close(self):
+        print(f"Device {self.device_id} close")
+
+    async def __aenter__(self):
+        await self.open()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
+
+    def generate_actions_from_decorators(self):
+        actions: list[Action] = []
         for python_method_name in dir(self):
             python_method = getattr(self, python_method_name)
             if hasattr(python_method, "is_action") and python_method.is_action:
+                assert inspect.iscoroutinefunction(python_method)
                 action_name = python_method_name
-                http_method = getattr(python_method, "http_method")
                 sig = inspect.signature(python_method)
                 parameters = [
-                    {
-                        "name": param_name,
-                        "type": param_def.annotation,
-                        "type_str": type_to_string(param_def.annotation),
-                        "optional": param_def.default is not inspect.Parameter.empty,
-                    }
+                    Parameter(
+                        param_name,
+                        parameter_types.inverse[param_def.annotation],
+                        param_def.default is not inspect.Parameter.empty,
+                    )
                     for param_name, param_def in sig.parameters.items()
                 ]
 
-                self.actions.append(
-                    {
-                        "action": action_name,
-                        "method": http_method,
-                        "handler": python_method,
-                        "parameters": parameters,
-                        "description": python_method.__doc__,
-                        "action_index": python_method.action_index,
-                    }
+                actions.append(
+                    Action(
+                        action_name,
+                        parameters,
+                        python_method.__doc__,
+                        python_method,
+                    )
                 )
-        self.actions.sort(key=lambda x: x["action_index"])
+        return actions
 
     async def send(self, message: dict):
         message["type"] = "device"
@@ -86,47 +100,43 @@ class Device:
         await self.socket_send(message)
 
     async def send_action_definitions(self):
-        actions = []
+        actions_dict = []
         for action in self.actions:
-            actions.append(
+            actions_dict.append(
                 {
-                    "name": action["action"],
-                    "method": action["method"],
+                    "name": action.name,
                     "parameters": [
                         {
-                            "name": x["name"],
-                            "type": x["type_str"],
-                            "optional": x["optional"],
+                            "name": x.name,
+                            "type": x.type,
+                            "optional": x.optional,
                         }
-                        for x in action.get("parameters", [])
+                        for x in action.parameters
                     ],
-                    "description": action.get("description"),
+                    "description": action.description,
                 }
             )
-        await self.send({"action": "set-actions", "actions": actions})
-
-    async def on_connected(self):
-        print(f"Device {self.device_id} connected")
-        await self.send({"action": "register"})
-        await self.send_action_definitions()
-
-    async def on_disconnected(self):
-        print(f"Device {self.device_id} disconnected")
+        actions_dict.sort(key=lambda x: x["name"])
+        await self.send({"action": "set-actions", "actions": actions_dict})
 
     async def on_message(self, message: dict):
+        if not isinstance(message, dict):
+            print(f"message {message} is not dict")
+            return
+
         type = message.get("type")
         device_id = message.get("device_id")
 
         if type != "device" or device_id != self.device_id:
             return
 
-        request_id = message.get("request_id")
         action = message.get("action")
-        method = message.get("method")
+        name = message.get("name")
+        request_id = message.get("request_id")
 
-        if request_id and action and method:
+        if request_id and action == "request" and name:
             try:
-                result = await self.on_request(action, method, message)
+                result = await self.on_request(name, message)
                 await self.send(
                     {"request_id": request_id, "success": True, "result": result}
                 )
@@ -142,28 +152,30 @@ class Device:
                     }
                 )
 
-    async def on_request(self, action: str, method: str, message: dict):
-        fount_action = None
-        for action_def in self.actions:
-            if action == action_def["action"] and method == action_def["method"]:
-                fount_action = action_def
-        if not fount_action:
-            raise Exception(f"action {action} {method} not found")
+    async def on_request(self, name: str, message: dict):
+        action_def = None
+        for iter_action in self.actions:
+            if name == iter_action.name:
+                action_def = iter_action
+        if not action_def:
+            raise Exception(f"action {name} not found")
 
-        handler = fount_action["handler"]
+        parameters = message.get("parameters")
+        if not isinstance(parameters, dict):
+            raise Exception(f"parameters is not dict")
+
         params = {}
-        for param_def in fount_action["parameters"]:
-            if param_def["name"] not in message and not param_def["optional"]:
-                raise Exception(f"param {param_def['name']} not found")
-            if param_def["name"] not in message and param_def["optional"]:
-                continue
-            param_value = message[param_def["name"]]
-            if not isinstance(param_value, param_def["type"]):
-                raise Exception(
-                    f"param {param_def['name']} is not type {param_def['type_str']}"
-                )
-            params[param_def["name"]] = param_value
-        result = await handler(**params)
+        for param_def in action_def.parameters:
+            if param_def.name not in parameters:
+                if not param_def.optional:
+                    raise Exception(f"param {param_def.name} not found")
+                else:
+                    continue
+            param_value = parameters[param_def.name]
+            if not isinstance(param_value, parameter_types[param_def.type]):
+                raise Exception(f"param {param_def.name} is not type {param_def.type}")
+            params[param_def.name] = param_value
+        result = await action_def.handler(**params)
         return result
 
     async def set_state(self, key: str, value):

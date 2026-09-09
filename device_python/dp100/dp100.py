@@ -19,12 +19,6 @@ import ATKDP100DLL  # type: ignore
 
 class DP100(Device):
 
-    async def on_connected(self):
-        await super().on_connected()
-
-    async def on_disconnected(self):
-        await super().on_disconnected()
-
     async def connect_to_dp100(self):
         dp100 = ATKDP100DLL.ATKDP100API()
         connected = dp100.DevOpenOrClose()
@@ -36,7 +30,7 @@ class DP100(Device):
             raise Exception("DP100 not connected to USB")
         return dp100
 
-    @action(method="get")
+    @action
     async def get_state(self):
 
         print("dp100 | get_state")
@@ -159,12 +153,12 @@ class DP100(Device):
 
         return state
 
-    @action("post")
+    @action
     async def output_on(self, voltage: float, current: float):
         dp100 = await self.connect_to_dp100()
         assert dp100.OpenOut(0, int(current * 1000), int(voltage * 1000))
 
-    @action("post")
+    @action
     async def output_off(self):
         dp100 = await self.connect_to_dp100()
         assert dp100.CloseOut(0, 0, 0)
