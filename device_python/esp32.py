@@ -105,6 +105,11 @@ class ESP32WSDevice(Device):
         )
         self.esp32_device_port = esp32_device_port
         self.sub_devices = set[Device]()
+        self.feature_configs = {
+            "ws2812": {
+                "gpio_num": 38,
+            }
+        }
 
     async def open(self):
         self.esp32_device = ESP32Device(self.esp32_device_port)
@@ -172,10 +177,18 @@ class ESP32WSDevice(Device):
                     ws_connection=self.ws_connection,
                     device_id=f"ws2812-{self.esp32_device.serial_number}",
                     esp32_send_command=self.esp32_device.send_command,
-                    gpio_num=38,
+                    gpio_num=self.feature_configs["ws2812"]["gpio_num"],
                 )
                 await sub_device.open()
                 self.sub_devices.add(sub_device)
+
+    @action
+    async def get_feature_configs(self):
+        return self.feature_configs
+
+    @action
+    async def set_feature_configs(self, config: str):
+        self.feature_configs = json.loads(config)
 
 
 async def create_esp32_ws_devices(ws_connection: Connection):

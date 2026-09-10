@@ -1,4 +1,3 @@
-
 from device_python.connection import Connection
 from device_python.types import Async
 
@@ -18,6 +17,15 @@ class WS2812(Device):
         super().__init__(ws_connection=ws_connection, device_id=device_id)
         self.esp32_send_command = esp32_send_command
         self.gpio_num = gpio_num
+
+    async def open(self):
+        await super().open()
+        await self.set_state("gpio_num", self.gpio_num)
+
+    @action
+    async def set_gpio_num(self, gpio_num: int):
+        self.gpio_num = gpio_num
+        await self.set_state("gpio_num", self.gpio_num)
 
     @action
     async def set(self, *, color: str, count: int):
