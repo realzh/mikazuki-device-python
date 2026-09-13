@@ -154,7 +154,7 @@ class ESP32WSDevice(Device):
             for arg in args:
                 parameters.append(device.Parameter(arg["name"], arg["type"], False))
             action = device.Action(
-                f"cmd_{command['name']}",
+                f"_{command['name']}",
                 parameters,
                 None,
                 await self.generate_action_handler_from_command(command),
