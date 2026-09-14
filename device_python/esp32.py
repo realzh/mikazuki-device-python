@@ -170,7 +170,7 @@ class ESP32WSDevice(Device):
                     )
                 )
             action = device.Action(
-                f"_{command['name']}",
+                f"esp32_{command['name']}",
                 action_param_defs,
                 None,
                 await self.generate_action_handler_from_command(command),
