@@ -1,5 +1,7 @@
 import asyncio
 import json
+import traceback
+from uuid import uuid4
 
 import serial.tools.list_ports
 
@@ -11,9 +13,9 @@ from .ws2812 import WS2812
 
 
 class Command:
-    def __init__(self, command: str) -> None:
+    def __init__(self, command: dict) -> None:
         self.command = command
-        self.result = asyncio.Future[str]()
+        self.response = asyncio.Future[dict]()
 
 
 class ESP32Device:
@@ -21,15 +23,19 @@ class ESP32Device:
     def __init__(self, port: str, timeout: int | None = None):
         self.port = port
         self.timeout = timeout
+        self.has_opened = False
 
     async def open(self):
+        print(f"esp32 device at {self.port} open")
+        assert not self.has_opened
+        self.has_opened = True
         self.serial = serial.Serial(self.port)
-        self.serial_number: str | None = None
         self.lock = asyncio.Lock()
-        self.pending_command: Command | None = None
+        self.pending_commands: dict[str, Command] = {}
         self.tasks = [asyncio.create_task(self.task_receive_line())]
-        self.serial_number = await self.send_command("get_state serial_number")
-        assert len(self.serial_number) > 0
+        self.serial_number = (
+            await self.send_command("get_state", {"key": "serial_number"})
+        )["result"]["value"]
 
     async def close(self):
         self.serial.close()
@@ -46,46 +52,57 @@ class ESP32Device:
     async def task_receive_line(self):
         while True:
             next_line = await asyncio.to_thread(self.serial.readline)
+
             try:
                 next_line = next_line.decode().strip()
-            except UnicodeDecodeError as e:
-                print(e)
+                print(f"esp32 | {next_line}")
+                next_line_dict = json.loads(next_line)
+                assert isinstance(next_line_dict, dict)
+            except Exception:
+                traceback.print_exc()
                 continue
-
-            if next_line.startswith("rsp| "):
-                rsp = next_line[5:]
-                print(f"esp32 | {rsp}")
-                if self.pending_command is not None:
-                    try:
-                        self.pending_command.result.set_result(rsp)
-                    except asyncio.InvalidStateError as e:
-                        print(e)
-                    self.pending_command = None
-
-            elif next_line.startswith("evt| "):
-                evt = next_line[5:]
-                print(f"esp32 * {evt}")
+            type = next_line_dict.get("type")
+            if type == "response":
+                request_id = next_line_dict.get("request_id")
+                if not isinstance(request_id, str):
+                    print("request_id not found in response")
+                    continue
+                if request_id not in self.pending_commands:
+                    print(f"response {request_id} not pending")
+                    continue
+                pending_command = self.pending_commands.pop(request_id)
+                pending_command.response.set_result(next_line_dict)
             else:
-                print(next_line)
+                print(f"unknown type {type}")
 
-    async def send_command(self, command: str, assert_success=True):
+    async def send_command(
+        self, name: str, params: dict | None = None, assert_success=True
+    ):
         async with self.lock:
-            command_bytes = command.encode("utf-8", "ignore")
+            request_id = str(uuid4())
+            command = {
+                "name": name,
+                "parameters": params if params else {},
+                "request_id": request_id,
+            }
+            command_str = json.dumps(command, separators=(",", ":"))
             pending_command = Command(command)
-            self.pending_command = pending_command
-            print(f"esp32 > {command}")
-            await asyncio.to_thread(self.serial.write, command_bytes + b"\n")
+            self.pending_commands[request_id] = pending_command
+            print(f"esp32 > {command_str}")
+            await asyncio.to_thread(self.serial.write, command_str.encode() + b"\n")
             if self.timeout is not None:
-                result = await asyncio.wait_for(pending_command.result, self.timeout)
+                response = await asyncio.wait_for(
+                    pending_command.response, self.timeout
+                )
             else:
-                result = await pending_command.result
-            success = result.startswith("OK")
+                response = await pending_command.response
+            success = response.get("success")
             if assert_success and not success:
-                raise Exception(f"Command {command} to {self.serial_number} failed")
-            if result.startswith("OK:"):
-                result = result[3:].strip()
+                raise Exception(
+                    f"Command {command} to {self.serial_number} failed, {response}"
+                )
 
-            return result
+            return response
 
 
 async def enumerate_device_ports():
@@ -119,7 +136,7 @@ class ESP32WSDevice(Device):
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)
         await self.send_action_definitions()
-        await self.create_devices_from_features()
+        # await self.create_devices_from_features()
 
     async def close(self):
         await super().close()
@@ -131,31 +148,30 @@ class ESP32WSDevice(Device):
     async def generate_action_handler_from_command(self, command: dict):
 
         async def handler(**kwargs):
-            esp32_command = f"{command['name']}"
-            for arg_def in command["args"]:
-                arg_name = arg_def["name"]
-                arg_value = kwargs[arg_name]
-                esp32_command += f" {arg_value}"
-            response = await self.esp32_device.send_command(esp32_command)
-            try:
-                response = json.loads(response)
-            except Exception:
-                pass
+
+            response = await self.esp32_device.send_command(command["name"], kwargs)
             return response
 
         return handler
 
     async def generate_actions_from_commands(self):
-        commands = json.loads(await self.esp32_device.send_command("get_commands"))
+        commands = (await self.esp32_device.send_command("get_command_defs"))["result"][
+            "command_defs"
+        ]
+
         actions: list[device.Action] = []
         for command in commands:
-            args = command["args"]
-            parameters: list[device.Parameter] = []
-            for arg in args:
-                parameters.append(device.Parameter(arg["name"], arg["type"], False))
+            esp32_param_defs = command["parameters"]
+            action_param_defs: list[device.Parameter] = []
+            for param_def in esp32_param_defs:
+                action_param_defs.append(
+                    device.Parameter(
+                        param_def["name"], param_def["type"], param_def["optional"]
+                    )
+                )
             action = device.Action(
                 f"_{command['name']}",
-                parameters,
+                action_param_defs,
                 None,
                 await self.generate_action_handler_from_command(command),
             )
@@ -163,24 +179,24 @@ class ESP32WSDevice(Device):
             actions.append(action)
         return actions
 
-    @action
-    async def create_devices_from_features(self):
-        while self.sub_devices:
-            sub_device = self.sub_devices.pop()
-            await sub_device.close()
-        features = await self.esp32_device.send_command("get_state features")
-        features = [x.strip() for x in features.split(",")]
-        await self.set_state("features", features)
-        for feature in features:
-            if feature == "ws2812":
-                sub_device = WS2812(
-                    ws_connection=self.ws_connection,
-                    device_id=f"ws2812-{self.esp32_device.serial_number}",
-                    esp32_send_command=self.esp32_device.send_command,
-                    gpio_num=self.feature_configs["ws2812"]["gpio_num"],
-                )
-                await sub_device.open()
-                self.sub_devices.add(sub_device)
+    # @action
+    # async def create_devices_from_features(self):
+    #     while self.sub_devices:
+    #         sub_device = self.sub_devices.pop()
+    #         await sub_device.close()
+    #     features = await self.esp32_device.send_command("get_state features")
+    #     features = [x.strip() for x in features.split(",")]
+    #     await self.set_state("features", features)
+    #     for feature in features:
+    #         if feature == "ws2812":
+    #             sub_device = WS2812(
+    #                 ws_connection=self.ws_connection,
+    #                 device_id=f"ws2812-{self.esp32_device.serial_number}",
+    #                 esp32_send_command=self.esp32_device.send_command,
+    #                 gpio_num=self.feature_configs["ws2812"]["gpio_num"],
+    #             )
+    #             await sub_device.open()
+    #             self.sub_devices.add(sub_device)
 
     @action
     async def get_feature_configs(self):
@@ -207,7 +223,7 @@ async def create_esp32_ws_devices(ws_connection: Connection):
 async def main():
     for port in await enumerate_device_ports():
         async with ESP32Device(port) as device:
-            pass
+            await device.send_command("get_command_defs")
 
 
 if __name__ == "__main__":

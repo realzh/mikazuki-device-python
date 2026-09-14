@@ -3,6 +3,7 @@ import traceback
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
+import typing
 
 from bidict import bidict
 
@@ -18,14 +19,20 @@ def action(func):
     return func
 
 
-parameter_types = bidict(
-    {
-        "string": str,
-        "integer": int,
-        "boolean": bool,
-        "float": float,
-    }
-)
+def parameter_type_class_to_string(type: type):
+    if type == int or type == float:
+        return "number"
+    elif type == str:
+        return "string"
+    raise Exception(f"Invalid type {type}")
+
+
+def parameter_type_check(type: str, value):
+    if type == "number":
+        return isinstance(value, int) or isinstance(value, float)
+    if type == "string":
+        return isinstance(value, str)
+    raise Exception(f"Invalid type {type}")
 
 
 @dataclass
@@ -33,6 +40,7 @@ class Parameter:
     name: str
     type: str
     optional: bool
+    type_class: typing.Type | None = None
 
 
 @dataclass
@@ -84,9 +92,10 @@ class Device:
                 sig = inspect.signature(python_method)
                 parameters = [
                     Parameter(
-                        param_name,
-                        parameter_types.inverse[param_def.annotation],
-                        param_def.default is not inspect.Parameter.empty,
+                        name=param_name,
+                        type=parameter_type_class_to_string(param_def.annotation),
+                        optional=param_def.default is not inspect.Parameter.empty,
+                        type_class=param_def.annotation,
                     )
                     for param_name, param_def in sig.parameters.items()
                 ]
@@ -179,8 +188,16 @@ class Device:
                 else:
                     continue
             param_value = parameters[param_def.name]
-            if not isinstance(param_value, parameter_types[param_def.type]):
-                raise Exception(f"param {param_def.name} is not type {param_def.type}")
+            if param_def.type_class:
+                if not isinstance(param_value, param_def.type_class):
+                    raise Exception(
+                        f"param {param_def.name} is not type {param_def.type_class}"
+                    )
+            else:
+                if not parameter_type_check(param_def.type, param_value):
+                    raise Exception(
+                        f"param {param_def.name} is not type {param_def.type}"
+                    )
             params[param_def.name] = param_value
         result = await action_def.handler(**params)
         return result
