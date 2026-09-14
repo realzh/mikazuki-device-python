@@ -136,7 +136,7 @@ class ESP32WSDevice(Device):
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)
         await self.send_action_definitions()
-        # await self.create_devices_from_features()
+        await self.create_devices_from_features()
 
     async def close(self):
         await super().close()
@@ -179,24 +179,31 @@ class ESP32WSDevice(Device):
             actions.append(action)
         return actions
 
-    # @action
-    # async def create_devices_from_features(self):
-    #     while self.sub_devices:
-    #         sub_device = self.sub_devices.pop()
-    #         await sub_device.close()
-    #     features = await self.esp32_device.send_command("get_state features")
-    #     features = [x.strip() for x in features.split(",")]
-    #     await self.set_state("features", features)
-    #     for feature in features:
-    #         if feature == "ws2812":
-    #             sub_device = WS2812(
-    #                 ws_connection=self.ws_connection,
-    #                 device_id=f"ws2812-{self.esp32_device.serial_number}",
-    #                 esp32_send_command=self.esp32_device.send_command,
-    #                 gpio_num=self.feature_configs["ws2812"]["gpio_num"],
-    #             )
-    #             await sub_device.open()
-    #             self.sub_devices.add(sub_device)
+    @action
+    async def create_devices_from_features(self):
+        while self.sub_devices:
+            sub_device = self.sub_devices.pop()
+            await sub_device.close()
+        esp32_states: dict[str, bool] = (
+            await self.esp32_device.send_command("get_states")
+        )["result"]["states"]
+        features: list[str] = []
+        for key, value in esp32_states.items():
+            if key.startswith("feature_") and value == "true":
+                features.append(key[8:])
+
+        await self.set_state("features", features)
+
+        for feature in features:
+            if feature == "ws2812":
+                sub_device = WS2812(
+                    ws_connection=self.ws_connection,
+                    device_id=f"ws2812-{self.esp32_device.serial_number}",
+                    esp32_device=self.esp32_device,
+                    gpio_num=self.feature_configs["ws2812"]["gpio_num"],
+                )
+                await sub_device.open()
+                self.sub_devices.add(sub_device)
 
     @action
     async def get_feature_configs(self):
@@ -223,7 +230,7 @@ async def create_esp32_ws_devices(ws_connection: Connection):
 async def main():
     for port in await enumerate_device_ports():
         async with ESP32Device(port) as device:
-            await device.send_command("get_command_defs")
+            await device.send_command("get_states")
 
 
 if __name__ == "__main__":
