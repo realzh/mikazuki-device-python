@@ -26,15 +26,13 @@ class ESP32Device:
         self.has_opened = False
 
     async def open(self):
-        print(f"esp32 device at {self.port} open")
-        assert not self.has_opened
         self.has_opened = True
         self.serial = serial.Serial(self.port)
         self.lock = asyncio.Lock()
         self.pending_commands: dict[str, Command] = {}
         self.tasks = [asyncio.create_task(self.task_receive_line())]
         self.serial_number = (
-            await self.send_command("get_state", {"key": "serial_number"})
+            await self.send_command("state_get", {"key": "serial_number"})
         )["result"]["value"]
 
     async def close(self):
@@ -155,7 +153,7 @@ class ESP32WSDevice(Device):
         return handler
 
     async def generate_actions_from_commands(self):
-        commands = (await self.esp32_device.send_command("get_command_defs"))["result"][
+        commands = (await self.esp32_device.send_command("command_defs_get"))["result"][
             "command_defs"
         ]
 
@@ -180,12 +178,17 @@ class ESP32WSDevice(Device):
         return actions
 
     @action
+    async def serial_reopen(self):
+        await self.esp32_device.close()
+        await self.esp32_device.open()
+
+    @action
     async def create_devices_from_features(self):
         while self.sub_devices:
             sub_device = self.sub_devices.pop()
             await sub_device.close()
         esp32_states: dict[str, bool] = (
-            await self.esp32_device.send_command("get_states")
+            await self.esp32_device.send_command("state_get_all")
         )["result"]["states"]
         features: list[str] = []
         for key, value in esp32_states.items():
@@ -206,11 +209,11 @@ class ESP32WSDevice(Device):
                 self.sub_devices.add(sub_device)
 
     @action
-    async def get_feature_configs(self):
+    async def feature_configs_get(self):
         return self.feature_configs
 
     @action
-    async def set_feature_configs(self, config: str):
+    async def feature_configs_set(self, config: str):
         self.feature_configs = json.loads(config)
 
 
@@ -230,7 +233,7 @@ async def create_esp32_ws_devices(ws_connection: Connection):
 async def main():
     for port in await enumerate_device_ports():
         async with ESP32Device(port) as device:
-            await device.send_command("get_states")
+            await device.send_command("state_get_all")
 
 
 if __name__ == "__main__":
