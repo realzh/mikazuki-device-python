@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 import traceback
 from uuid import uuid4
 
@@ -87,6 +88,7 @@ class ESP32Device:
             pending_command = Command(command)
             self.pending_commands[request_id] = pending_command
             print(f"esp32 > {command_str}")
+            start_time_ns = time.perf_counter_ns()
             await asyncio.to_thread(self.serial.write, command_str.encode() + b"\n")
             if self.timeout is not None:
                 response = await asyncio.wait_for(
@@ -94,6 +96,10 @@ class ESP32Device:
                 )
             else:
                 response = await pending_command.response
+            stop_time_ns = time.perf_counter_ns()
+            response["response_time"] = (
+                stop_time_ns - start_time_ns
+            ) / 1e9
             success = response.get("success")
             if assert_success and not success:
                 raise Exception(
@@ -159,12 +165,15 @@ class ESP32WSDevice(Device):
 
         actions: list[device.Action] = []
         for command in commands:
-            esp32_param_defs = command["parameters"]
+            esp32_param_defs: list[dict] = command["parameters"]
             action_param_defs: list[device.Parameter] = []
             for param_def in esp32_param_defs:
                 action_param_defs.append(
                     device.Parameter(
-                        param_def["name"], param_def["type"], param_def["optional"]
+                        name=param_def["name"],
+                        type=param_def["type"],
+                        optional=param_def["optional"],
+                        description=param_def.get("description"),
                     )
                 )
             action = device.Action(

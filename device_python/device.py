@@ -35,12 +35,13 @@ def parameter_type_check(type: str, value):
     raise Exception(f"Invalid type {type}")
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Parameter:
     name: str
     type: str
     optional: bool
     type_class: typing.Type | None = None
+    description: str | None = None
 
 
 @dataclass
@@ -126,6 +127,7 @@ class Device:
                             "name": x.name,
                             "type": x.type,
                             "optional": x.optional,
+                            "description": x.description,
                         }
                         for x in action.parameters
                     ],
