@@ -3,6 +3,7 @@ import json
 import time
 import traceback
 from uuid import uuid4
+import zlib
 
 import serial.tools.list_ports
 
@@ -55,14 +56,21 @@ class ESP32Device:
             try:
                 next_line = next_line.decode().strip()
                 print(f"esp32 | {next_line}")
-                next_line_dict = json.loads(next_line)
-                assert isinstance(next_line_dict, dict)
+                assert len(next_line) > 8
+                json_str = next_line[:-8]
+                crc_received = int.from_bytes(
+                    bytes.fromhex(next_line[-8:]), byteorder="little", signed=False
+                )
+                crc_calculated = zlib.crc32(json_str.encode())
+                assert crc_received == crc_calculated
+                json_dict = json.loads(json_str)
+                assert isinstance(json_dict, dict)
             except Exception:
                 traceback.print_exc()
                 continue
-            type = next_line_dict.get("type")
+            type = json_dict.get("type")
             if type == "response":
-                request_id = next_line_dict.get("request_id")
+                request_id = json_dict.get("request_id")
                 if not isinstance(request_id, str):
                     print("request_id not found in response")
                     continue
@@ -70,7 +78,7 @@ class ESP32Device:
                     print(f"response {request_id} not pending")
                     continue
                 pending_command = self.pending_commands.pop(request_id)
-                pending_command.response.set_result(next_line_dict)
+                pending_command.response.set_result(json_dict)
             else:
                 print(f"unknown type {type}")
 
@@ -89,7 +97,16 @@ class ESP32Device:
             self.pending_commands[request_id] = pending_command
             print(f"esp32 > {command_str}")
             start_time_ns = time.perf_counter_ns()
-            await asyncio.to_thread(self.serial.write, command_str.encode() + b"\n")
+            serial_line = command_str.encode()
+            serial_line += (
+                zlib.crc32(serial_line)
+                .to_bytes(length=4, byteorder="little", signed=False)
+                .hex()
+                .upper()
+                .encode()
+            )
+            serial_line += b"\n"
+            await asyncio.to_thread(self.serial.write, serial_line)
             if self.timeout is not None:
                 response = await asyncio.wait_for(
                     pending_command.response, self.timeout
@@ -97,9 +114,7 @@ class ESP32Device:
             else:
                 response = await pending_command.response
             stop_time_ns = time.perf_counter_ns()
-            response["response_time"] = (
-                stop_time_ns - start_time_ns
-            ) / 1e9
+            response["response_time"] = (stop_time_ns - start_time_ns) / 1e9
             success = response.get("success")
             if assert_success and not success:
                 raise Exception(
