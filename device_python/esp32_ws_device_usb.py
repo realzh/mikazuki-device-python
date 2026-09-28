@@ -1,14 +1,14 @@
 from device_python import ws_device
-from device_python.esp32_device import ESP32Device
+from device_python.esp32_device_usb import ESP32DeviceUSB
 from device_python.ws_connection import WSConnection
 
 from .ws_device import WSDevice
 
 
-class ESP32WSDevice(WSDevice):
+class ESP32WSDeviceUSB(WSDevice):
 
     def __init__(
-        self, *, ws_connection: WSConnection, esp32_device: ESP32Device
+        self, *, ws_connection: WSConnection, esp32_device: ESP32DeviceUSB
     ) -> None:
         super().__init__(
             ws_connection=ws_connection,
@@ -22,7 +22,7 @@ class ESP32WSDevice(WSDevice):
         #     }
         # }
 
-    async def on_esp32_close(self, esp32_device: ESP32Device):
+    async def on_esp32_close(self, esp32_device: ESP32DeviceUSB):
         await self.close()
 
     async def on_open(self):

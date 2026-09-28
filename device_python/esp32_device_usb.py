@@ -16,7 +16,7 @@ class Command:
         self.response = asyncio.Future[dict]()
 
 
-class ESP32Device(Openable):
+class ESP32DeviceUSB(Openable):
 
     @classmethod
     async def enumerate_device_ports(cls):
