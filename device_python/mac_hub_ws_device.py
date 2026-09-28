@@ -15,17 +15,15 @@ class MacHubWSDevice(WSDevice):
 
     async def on_open(self):
         await super().on_open()
-        await self.esp32_enumerate_devices()
+        await self.enumerate_esp32_devices()
 
     async def on_close(self):
         await super().on_close()
-        for esp32_ws_device in self.esp32_ws_devices.copy():
-            await esp32_ws_device.close()
+        await self.close_all_esp32_devices()
 
     @action
-    async def esp32_enumerate_devices(self):
-        for esp32_ws_device in self.esp32_ws_devices.copy():
-            await esp32_ws_device.close()
+    async def enumerate_esp32_devices(self):
+        await self.close_all_esp32_devices()
         ports = await ESP32Device.enumerate_device_ports()
 
         for port in ports:
@@ -37,3 +35,8 @@ class MacHubWSDevice(WSDevice):
             self.esp32_ws_devices.add(esp32_ws_device)
             esp32_ws_device.on_close_callbacks.add(self.esp32_on_close)
             await esp32_ws_device.open()
+
+    @action
+    async def close_all_esp32_devices(self):
+        for esp32_ws_device in self.esp32_ws_devices.copy():
+            await esp32_ws_device.close()
