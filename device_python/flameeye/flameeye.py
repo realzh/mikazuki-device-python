@@ -1,5 +1,5 @@
-from device_python.device import Device
-from device_python.device import action as device_action
+from device_python.ws_device import Device
+from device_python.ws_device import action as device_action
 
 from . import action
 

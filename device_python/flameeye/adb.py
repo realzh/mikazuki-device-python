@@ -4,7 +4,7 @@ import tempfile
 from datetime import datetime
 from uuid import uuid4
 
-from device_python.device import Device, action
+from device_python.ws_device import Device, action
 
 
 async def run_command(cmd: str, raise_on_fail=True):

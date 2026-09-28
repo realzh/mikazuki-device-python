@@ -4,10 +4,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 import typing
-
-from bidict import bidict
-
-from .connection import Connection
+from device_python.openable import Openable
+from device_python.ws_connection import WSConnection
 
 action_index = 0
 
@@ -52,36 +50,29 @@ class Action:
     handler: Callable[..., Awaitable[Any]]
 
 
-class Device:
+class WSDevice(Openable):
 
-    def __init__(self, *, ws_connection: Connection, device_id: str | None = None):
+    def __init__(self, *, ws_connection: WSConnection, device_id: str | None = None):
+        super().__init__()
         self.ws_connection = ws_connection
         self.device_id = device_id
         self.actions: list[Action] = []
 
-    async def open(self):
+    async def on_open(self):
         assert self.device_id is not None
         print(f"Device {self.device_id} open")
         self.ws_connection.message_listeners.add(self.on_message)
-        self.generate_actions_from_decorators()
         await self.send({"action": "register"})
         self.actions.extend(self.generate_actions_from_decorators())
         await self.send_action_definitions()
 
-    async def close(self):
+    async def on_close(self):
         print(f"Device {self.device_id} close")
         try:
             await self.send({"action": "unregister"})
         except:
             pass
         self.ws_connection.message_listeners.remove(self.on_message)
-
-    async def __aenter__(self):
-        await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.close()
 
     def generate_actions_from_decorators(self):
         actions: list[Action] = []

@@ -1,43 +1,30 @@
 import asyncio
 import json
 import traceback
-from contextlib import AsyncExitStack
 
 import websockets
+
+from device_python.openable import Openable
 
 from .types import Async
 
 
-class Connection:
-
-    def __init__(self):
-        self.has_opened = False
+class WSConnection(Openable):
 
     async def open(self):
-        if self.has_opened:
-            raise Exception(f"Connection can't be opened twice")
-        self.has_opened = True
+        await super().open()
+
         self.url = "ws://localhost:8000/api/ws"
-        self.context = AsyncExitStack()
-        self.ws = await self.context.enter_async_context(websockets.connect(self.url))
-        print(f"Connection to {self.url} open")
+        self.ws = await websockets.connect(self.url)
+
+        print(f"WSConnection to {self.url} open")
         self.message_listeners = set[Async[dict, None]]()
 
-        self.tasks = set[asyncio.Task]()
-        self.tasks.add(asyncio.create_task(self.task_receive()))
+        self.add_task(asyncio.create_task(self.task_receive()))
 
     async def close(self):
-        print(f"Connection to {self.url} closed")
-        for task in self.tasks:
-            task.cancel()
-        await self.context.aclose()
-
-    async def __aenter__(self):
-        await self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        await self.close()
+        print(f"WSConnection to {self.url} close")
+        await super().close()
 
     async def send(self, message: dict):
         message_json = json.dumps(message, ensure_ascii=False)

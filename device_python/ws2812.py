@@ -1,8 +1,7 @@
-from device_python.connection import Connection
+from device_python.ws_connection import WSConnection
 
 # from device_python.esp32 import ESP32Device
-
-from .device import Device, action
+from .ws_device import Device, action
 
 
 class WS2812(Device):
@@ -10,7 +9,7 @@ class WS2812(Device):
     def __init__(
         self,
         *,
-        ws_connection: Connection,
+        ws_connection: WSConnection,
         device_id: str | None = None,
         esp32_device,
         gpio_num: int,
