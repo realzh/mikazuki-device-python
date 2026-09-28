@@ -6,7 +6,7 @@ from device_python.ws_device import WSDevice, action
 
 class MacHubWSDevice(WSDevice):
     def __init__(self, *, ws_connection: WSConnection):
-        super().__init__(ws_connection=ws_connection, device_id="hub-mac")
+        super().__init__(ws_connection=ws_connection, device_id="mac-hub")
         self.esp32_ws_devices = set[ESP32WSDevice]()
 
     async def esp32_on_close(self, esp32_ws_device: ESP32WSDevice):
@@ -25,6 +25,7 @@ class MacHubWSDevice(WSDevice):
     async def enumerate_esp32_devices(self):
         await self.close_all_esp32_devices()
         ports = await ESP32Device.enumerate_device_ports()
+        await self.set_state("esp32_ports", ports)
 
         for port in ports:
             esp32_device = ESP32Device(port)

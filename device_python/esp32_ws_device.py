@@ -28,7 +28,7 @@ class ESP32WSDevice(WSDevice):
     async def on_open(self):
         self.esp32_device.on_close_callbacks.add(self.on_esp32_close)
         await self.esp32_device.open()
-        self.device_id = f"esp32-{self.esp32_device.serial_number}"
+        self.device_id = f"esp32-{self.esp32_device.serial_number}-usb"
         await super().on_open()
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)
