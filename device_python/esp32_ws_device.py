@@ -1,20 +1,26 @@
 from device_python import ws_device
+from device_python.esp32_device_base import ESP32DeviceBase
 from device_python.esp32_device_usb import ESP32DeviceUSB
 from device_python.ws_connection import WSConnection
 
 from .ws_device import WSDevice
 
 
-class ESP32WSDeviceUSB(WSDevice):
+class ESP32WSDevice(WSDevice):
 
     def __init__(
-        self, *, ws_connection: WSConnection, esp32_device: ESP32DeviceUSB
+        self,
+        *,
+        ws_connection: WSConnection,
+        esp32_device: ESP32DeviceBase,
+        channel: str | None = None,
     ) -> None:
         super().__init__(
             ws_connection=ws_connection,
             device_id=None,
         )
         self.esp32_device = esp32_device
+        self.channel = channel
         # self.sub_devices = set[Device]()
         # self.feature_configs = {
         #     "ws2812": {
@@ -22,13 +28,15 @@ class ESP32WSDeviceUSB(WSDevice):
         #     }
         # }
 
-    async def on_esp32_close(self, esp32_device: ESP32DeviceUSB):
+    async def on_esp32_close(self, esp32_device: ESP32DeviceBase):
         await self.close()
 
     async def on_open(self):
         self.esp32_device.on_close_callbacks.add(self.on_esp32_close)
         await self.esp32_device.open()
-        self.device_id = f"esp32-{self.esp32_device.serial_number}-usb"
+        self.device_id = f"esp32-{self.esp32_device.serial_number}"
+        if self.channel is not None:
+            self.device_id = self.device_id + "-" + self.channel
         await super().on_open()
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)

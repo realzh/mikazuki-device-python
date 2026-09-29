@@ -1,9 +1,10 @@
 import inspect
 import traceback
+import typing
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
-import typing
+
 from device_python.openable import Openable
 from device_python.ws_connection import WSConnection
 
