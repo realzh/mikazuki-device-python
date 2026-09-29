@@ -20,6 +20,7 @@ class ESP32DeviceBT(ESP32DeviceBase):
         super().__init__()
         self.address = address
         self.stream_reader = asyncio.StreamReader(limit=2**20)
+        self.channel = "bt"
 
     def on_ble_notify(self, sender, data: bytearray):
         try:

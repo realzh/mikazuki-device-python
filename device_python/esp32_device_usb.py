@@ -18,6 +18,7 @@ class ESP32DeviceUSB(ESP32DeviceBase):
     def __init__(self, port: str):
         super().__init__()
         self.port = port
+        self.channel = "usb"
 
     async def on_open(self):
         self.serial = serial.Serial(self.port)

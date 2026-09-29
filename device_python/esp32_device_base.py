@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import json
 import time
 import traceback
@@ -16,6 +17,8 @@ class ESP32DeviceBase(Openable):
         self.heartbeat_interval_s = 0.2
         self.lock = asyncio.Lock()
         self.pending_commands: dict[str, asyncio.Future[dict]] = {}
+        self.channel: None | str = None
+        self.system_info = {}
 
     async def esp32_readline(self) -> bytes:
         raise NotImplementedError()
@@ -30,6 +33,23 @@ class ESP32DeviceBase(Openable):
         self.serial_number = (
             await self.send_command("state_get", {"key": "serial_number"})
         )["result"]["value"]
+        self.system_info["serial_number"] = self.serial_number
+
+        try:
+            self.system_info["device_name"] = (
+                await self.send_command("nvs_get", {"key": "device_name"})
+            )["result"]["value"]
+        except:
+            traceback.print_exc()
+        try:
+            system_info = (await self.send_command("system_info_get"))["result"]
+            self.system_info["project_name"] = system_info["project_name"]
+            dt = datetime.strptime(system_info["compile_time"], "%b %d %Y %H:%M:%S")
+            self.system_info["compile_time"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            traceback.print_exc()
+        if self.channel is not None:
+            self.system_info["channel"] = self.channel
 
     async def on_close(self):
         while self.pending_commands:

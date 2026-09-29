@@ -13,14 +13,12 @@ class ESP32WSDevice(WSDevice):
         *,
         ws_connection: WSConnection,
         esp32_device: ESP32DeviceBase,
-        channel: str | None = None,
     ) -> None:
         super().__init__(
             ws_connection=ws_connection,
             device_id=None,
         )
         self.esp32_device = esp32_device
-        self.channel = channel
         # self.sub_devices = set[Device]()
         # self.feature_configs = {
         #     "ws2812": {
@@ -35,9 +33,11 @@ class ESP32WSDevice(WSDevice):
         self.esp32_device.on_close_callbacks.add(self.on_esp32_close)
         await self.esp32_device.open()
         self.device_id = f"esp32-{self.esp32_device.serial_number}"
-        if self.channel is not None:
-            self.device_id = self.device_id + "-" + self.channel
+        if self.esp32_device.channel is not None:
+            self.device_id = self.device_id + "-" + self.esp32_device.channel
         await super().on_open()
+        for k, v in self.esp32_device.system_info.items():
+            await self.set_state(k, v)
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)
         await self.send_action_definitions()
