@@ -76,5 +76,6 @@ class MacHubWSDevice(WSDevice):
 
     @action
     async def close_all_esp32_devices(self):
-        for esp32_ws_device in self.esp32_ws_devices.copy():
-            await esp32_ws_device.close()
+        async with asyncio.TaskGroup() as tg:
+            for esp32_ws_device in self.esp32_ws_devices.copy():
+                tg.create_task(esp32_ws_device.close())
