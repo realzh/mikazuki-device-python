@@ -21,7 +21,7 @@ class ESP32DeviceUSB(ESP32DeviceBase):
         self.channel = "usb"
 
     async def on_open(self):
-        self.serial = serial.Serial(self.port)
+        self.serial = await asyncio.to_thread(serial.Serial, self.port)
         await super().on_open()
 
     async def on_close(self):
