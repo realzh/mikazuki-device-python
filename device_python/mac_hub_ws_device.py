@@ -1,3 +1,5 @@
+import asyncio
+
 from device_python.esp32_device_bt import ESP32DeviceBT
 from device_python.esp32_device_usb import ESP32DeviceUSB
 from device_python.esp32_ws_device import ESP32WSDevice
@@ -51,21 +53,23 @@ class MacHubWSDevice(WSDevice):
             )
             self.esp32_ws_devices.add(esp32_ws_device)
 
-        for esp32_ws_device in self.esp32_ws_devices:
-            esp32_ws_device.on_close_callbacks.add(self.esp32_on_close)
-            await esp32_ws_device.open()
+        async with asyncio.TaskGroup() as tg:
+            for esp32_ws_device in self.esp32_ws_devices:
+                esp32_ws_device.on_close_callbacks.add(self.esp32_on_close)
+                tg.create_task(esp32_ws_device.open())
 
-        for iter_dev in self.esp32_ws_devices.copy():
-            for iter_other_dev in self.esp32_ws_devices.copy():
-                if iter_dev == iter_other_dev:
-                    continue
-                if (
-                    iter_dev.esp32_device.channel == "bt"
-                    and iter_other_dev.esp32_device.channel == "usb"
-                    and iter_dev.esp32_device.serial_number
-                    == iter_other_dev.esp32_device.serial_number
-                ):
-                    await iter_dev.close()
+        async with asyncio.TaskGroup() as tg:
+            for iter_dev in self.esp32_ws_devices.copy():
+                for iter_other_dev in self.esp32_ws_devices.copy():
+                    if iter_dev == iter_other_dev:
+                        continue
+                    if (
+                        iter_dev.esp32_device.channel == "bt"
+                        and iter_other_dev.esp32_device.channel == "usb"
+                        and iter_dev.esp32_device.serial_number
+                        == iter_other_dev.esp32_device.serial_number
+                    ):
+                        tg.create_task(iter_dev.close())
         esp32_device_ids = [x.device_id for x in self.esp32_ws_devices]
         await self.set_state("esp32_devices", esp32_device_ids)
         return esp32_device_ids
