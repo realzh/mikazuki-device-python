@@ -132,7 +132,7 @@ class ESP32DeviceBase(Openable):
             stop_time_ns = time.perf_counter_ns()
             if print_log:
                 print(f"esp32 | {response}")
-            response["response_time"] = (stop_time_ns - start_time_ns) / 1e9
+            response["esp32_response_time"] = (stop_time_ns - start_time_ns) / 1e9
             success = response.get("success")
             if assert_success and not success:
                 raise Exception(
