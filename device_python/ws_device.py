@@ -73,7 +73,10 @@ class WSDevice(Openable):
             await self.send({"action": "unregister"})
         except:
             pass
-        self.ws_connection.message_listeners.remove(self.on_message)
+        try:
+            self.ws_connection.message_listeners.remove(self.on_message)
+        except:
+            pass
 
     def generate_actions_from_decorators(self):
         actions: list[Action] = []

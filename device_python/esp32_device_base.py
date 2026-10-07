@@ -125,7 +125,10 @@ class ESP32DeviceBase(Openable):
             command_bytes += b"\n"
             start_time_ns = time.perf_counter_ns()
             await self.esp32_write(command_bytes)
-            response = await asyncio.wait_for(response_future, self.timeout_s)
+            try:
+                response = await asyncio.wait_for(response_future, self.timeout_s)
+            except TimeoutError as e:
+                raise TimeoutError("ESP32 command response timeout") from e
             stop_time_ns = time.perf_counter_ns()
             if print_log:
                 print(f"esp32 | {response}")
