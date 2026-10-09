@@ -7,6 +7,7 @@ import uuid
 import zlib
 
 from device_python.openable import Openable
+from device_python.types import Async
 
 
 class ESP32DeviceBase(Openable):
@@ -19,6 +20,7 @@ class ESP32DeviceBase(Openable):
         self.pending_commands: dict[str, asyncio.Future[dict]] = {}
         self.channel: None | str = None
         self.system_info = {}
+        self.on_event_callbacks = set[Async]()
 
     async def esp32_readline(self) -> bytes:
         raise NotImplementedError()
@@ -43,9 +45,10 @@ class ESP32DeviceBase(Openable):
             traceback.print_exc()
         try:
             system_info = (await self.send_command("system_info_get"))["result"]
-            self.system_info["project_name"] = system_info["project_name"]
+            self.system_info["app_version"] = system_info["app_version"]
             dt = datetime.strptime(system_info["compile_time"], "%b %d %Y %H:%M:%S")
             self.system_info["compile_time"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+            self.system_info["project_name"] = system_info["project_name"]
         except:
             traceback.print_exc()
         if self.channel is not None:
@@ -85,6 +88,12 @@ class ESP32DeviceBase(Openable):
                     continue
                 pending_command = self.pending_commands.pop(request_id)
                 pending_command.set_result(json_dict)
+            elif type == "event":
+                for on_event in self.on_event_callbacks:
+                    try:
+                        await on_event(json_dict)
+                    except:
+                        pass
             else:
                 print(f"unknown type {type}")
 

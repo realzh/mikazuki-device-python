@@ -201,3 +201,12 @@ class WSDevice(Openable):
 
     async def set_state(self, key: str, value):
         await self.send({"action": "set-state", "key": key, "value": value})
+
+    async def send_event(self, name: str, value: Any):
+        await self.send(
+            {
+                "action": "event",
+                "name": name,
+                "value": value,
+            }
+        )
