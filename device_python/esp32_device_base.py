@@ -15,7 +15,7 @@ class ESP32DeviceBase(Openable):
     def __init__(self):
         super().__init__()
         self.timeout_s = 1
-        self.heartbeat_interval_s = 0.2
+        self.heartbeat_interval_s = 2
         self.lock = asyncio.Lock()
         self.pending_commands: dict[str, asyncio.Future[dict]] = {}
         self.channel: None | str = None
@@ -103,6 +103,7 @@ class ESP32DeviceBase(Openable):
                 await self.send_command("echo", {"value": "hearbeat"}, print_log=False)
                 await asyncio.sleep(self.heartbeat_interval_s)
             except:
+                print(f"Device {self.serial_number} hearbeat timeout")
                 await self.close()
                 break
 

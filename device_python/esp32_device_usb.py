@@ -11,7 +11,7 @@ class ESP32DeviceUSB(ESP32DeviceBase):
     async def scan_devices(cls):
         ports: list[str] = []
         for p in serial.tools.list_ports.comports():
-            if p.product == "mikatsuki":
+            if p.product == "mikaziiki":
                 ports.append(p.device)
         return ports
 

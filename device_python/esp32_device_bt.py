@@ -13,7 +13,7 @@ class ESP32DeviceBT(ESP32DeviceBase):
     async def scan_devices(cls):
         addresses = []
         for device in await bleak.BleakScanner.discover(timeout=0.1):
-            if device.name == "MIKATSIIKI":
+            if device.name == "MIKAZIIKI":
                 addresses.append(device.address)
         return addresses
 
