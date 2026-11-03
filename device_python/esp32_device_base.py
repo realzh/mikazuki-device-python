@@ -71,7 +71,7 @@ class ESP32DeviceBase(Openable):
                     bytes.fromhex(next_line[-8:]), byteorder="little", signed=False
                 )
                 crc_calculated = zlib.crc32(json_str.encode())
-                assert crc_received == crc_calculated
+                assert crc_received == crc_calculated, f'{crc_received} != {crc_calculated}'
                 json_dict = json.loads(json_str)
                 assert isinstance(json_dict, dict)
             except Exception:
