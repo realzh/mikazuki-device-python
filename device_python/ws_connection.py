@@ -42,10 +42,7 @@ class WSConnection(Openable):
                 traceback.print_exc()
                 continue
 
-            for listener in list(self.message_listeners):
-                try:
-                    await listener(message)
-                except websockets.ConnectionClosed:
-                    raise
-                except Exception:
-                    traceback.print_exc()
+            listener_tasks = [
+                asyncio.create_task(x(message)) for x in self.message_listeners
+            ]
+            await asyncio.gather(*listener_tasks)

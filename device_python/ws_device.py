@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import traceback
 import typing
@@ -58,10 +59,12 @@ class WSDevice(Openable):
         self.ws_connection = ws_connection
         self.device_id = device_id
         self.actions: list[Action] = []
+        self.message_queue = asyncio.Queue[dict]()
 
     async def on_open(self):
         assert self.device_id is not None
         print(f"Device {self.device_id} open")
+        self.tasks.add(asyncio.create_task(self.task_on_message()))
         self.ws_connection.message_listeners.add(self.on_message)
         await self.send({"action": "register"})
         self.actions.extend(self.generate_actions_from_decorators())
@@ -143,27 +146,33 @@ class WSDevice(Openable):
         if type != "device" or device_id != self.device_id:
             return
 
-        action = message.get("action")
-        name = message.get("name")
-        request_id = message.get("request_id")
+        self.message_queue.put_nowait(message)
 
-        if request_id and action == "request" and name:
-            try:
-                result = await self.on_request(name, message)
-                await self.send(
-                    {"request_id": request_id, "success": True, "result": result}
-                )
-            except Exception as e:
-                stacktrace = traceback.format_exc()
+    async def task_on_message(self):
+        while True:
+            message = await self.message_queue.get()
+            action = message.get("action")
+            name = message.get("name")
+            request_id = message.get("request_id")
 
-                await self.send(
-                    {
-                        "request_id": request_id,
-                        "success": False,
-                        "reason": str(e),
-                        "stacktrace": str(stacktrace),
-                    }
-                )
+            if request_id and action == "request" and name:
+                try:
+                    result = await self.on_request(name, message)
+                    await self.send(
+                        {"request_id": request_id, "success": True, "result": result}
+                    )
+                except Exception as e:
+                    traceback.print_exc()
+                    stacktrace = traceback.format_exc()
+
+                    await self.send(
+                        {
+                            "request_id": request_id,
+                            "success": False,
+                            "reason": str(e),
+                            "stacktrace": str(stacktrace),
+                        }
+                    )
 
     async def on_request(self, name: str, message: dict):
         action_def = None
