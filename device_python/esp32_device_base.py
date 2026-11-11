@@ -44,10 +44,9 @@ class ESP32DeviceBase(Openable):
         except:
             traceback.print_exc()
         try:
-            system_info = (await self.send_command("system_info_get"))["result"]
+            system_info = (await self.send_command("system_state_get"))["result"]
             self.system_info["app_version"] = system_info["app_version"]
-            dt = datetime.strptime(system_info["compile_time"], "%b %d %Y %H:%M:%S")
-            self.system_info["compile_time"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+            self.system_info["build_time"] = system_info["build_time"]
             self.system_info["project_name"] = system_info["project_name"]
         except:
             traceback.print_exc()
@@ -71,7 +70,9 @@ class ESP32DeviceBase(Openable):
                     bytes.fromhex(next_line[-8:]), byteorder="little", signed=False
                 )
                 crc_calculated = zlib.crc32(json_str.encode())
-                assert crc_received == crc_calculated, f'{crc_received} != {crc_calculated}'
+                assert (
+                    crc_received == crc_calculated
+                ), f"{crc_received} != {crc_calculated}"
                 json_dict = json.loads(json_str)
                 assert isinstance(json_dict, dict)
             except Exception:
