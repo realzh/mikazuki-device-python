@@ -17,25 +17,26 @@ class MacHubWSDevice(WSDevice):
         if esp32_ws_device in self.esp32_ws_devices:
             self.esp32_ws_devices.remove(esp32_ws_device)
         await self.set_state(
-            "esp32_devices", [x.device_id for x in self.esp32_ws_devices]
+            "esp32_devices_opened", [x.device_id for x in self.esp32_ws_devices]
         )
 
     async def on_open(self):
         await super().on_open()
         await self.open_esp32_devices()
-        self.tasks.add(asyncio.create_task(self.task_watch_connected_devices())
-)
+        self.tasks.add(asyncio.create_task(self.task_watch_connected_devices()))
+
     async def on_close(self):
         await super().on_close()
         await self.close_all_esp32_devices()
 
     @action
     async def open_esp32_devices(self):
-        connected_devices = []
-        connected_devices.extend(await ESP32DeviceUSB.scan_devices())
-        connected_devices.extend(await ESP32DeviceBLE.scan_devices())
+        discovered_devices = []
+        discovered_devices.extend(await ESP32DeviceUSB.scan_devices())
+        discovered_devices.extend(await ESP32DeviceBLE.scan_devices())
+        await self.set_state("esp32_devices_discovered", discovered_devices)
         device_serial_numbers = set[str]()
-        for dev in connected_devices:
+        for dev in discovered_devices:
             device_serial_numbers.add(dev["serial_number"])
 
         channel_priority = {
@@ -45,7 +46,7 @@ class MacHubWSDevice(WSDevice):
         selected_devices = []
         for sn in device_serial_numbers:
             selected_device = None
-            for dev in connected_devices:
+            for dev in discovered_devices:
                 if dev["serial_number"] == sn:
                     if selected_device == None:
                         selected_device = dev
@@ -90,6 +91,9 @@ class MacHubWSDevice(WSDevice):
             opened_tasks.append(asyncio.create_task(esp32_ws_device.open()))
         results = await asyncio.gather(*opened_tasks, return_exceptions=True)
         errors = [r for r in results if isinstance(r, Exception)]
+        await self.set_state(
+            "esp32_devices", [x.device_id for x in self.esp32_ws_devices]
+        )
         return opened_devices
 
     async def task_watch_connected_devices(self):
