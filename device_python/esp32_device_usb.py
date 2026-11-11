@@ -9,11 +9,17 @@ class ESP32DeviceUSB(ESP32DeviceBase):
 
     @classmethod
     async def scan_devices(cls):
-        ports: list[str] = []
+        devices = []
         for p in serial.tools.list_ports.comports():
             if p.product == "MIKAZIIKI":
-                ports.append(p.device)
-        return ports
+                devices.append(
+                    {
+                        "device_address": p.device,
+                        "serial_number": p.serial_number,
+                        "channel": "usb",
+                    }
+                )
+        return devices
 
     def __init__(self, port: str):
         super().__init__()

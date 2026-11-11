@@ -13,12 +13,14 @@ class ESP32WSDevice(WSDevice):
         *,
         ws_connection: WSConnection,
         esp32_device: ESP32DeviceBase,
+        serial_number: str,
     ) -> None:
         super().__init__(
             ws_connection=ws_connection,
             device_id=None,
         )
         self.esp32_device = esp32_device
+        self.serial_number = serial_number
         # self.sub_devices = set[Device]()
         # self.feature_configs = {
         #     "ws2812": {

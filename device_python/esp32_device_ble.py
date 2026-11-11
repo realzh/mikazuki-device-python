@@ -7,15 +7,25 @@ import bleak.exc
 from device_python.esp32_device_base import ESP32DeviceBase
 
 
-class ESP32DeviceBT(ESP32DeviceBase):
+class ESP32DeviceBLE(ESP32DeviceBase):
 
     @classmethod
     async def scan_devices(cls):
-        addresses = []
-        for device in await bleak.BleakScanner.discover(timeout=0.1):
-            if device.name == "MIKAZIIKI":
-                addresses.append(device.address)
-        return addresses
+        devices = []
+        for device_addr, (device, adv) in (
+            await bleak.BleakScanner.discover(timeout=0.5, return_adv=True)
+        ).items():
+            serial_number = adv.manufacturer_data.get(0xFFFF, b"").hex().upper()
+            if adv.local_name == "MIKAZIIKI" and serial_number != "":
+                devices.append(
+                    {
+                        "device_address": device_addr,
+                        "serial_number": serial_number,
+                        "channel": "ble",
+                    }
+                )
+
+        return devices
 
     def __init__(self, address: str) -> None:
         super().__init__()
