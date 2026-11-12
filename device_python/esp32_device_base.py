@@ -133,9 +133,8 @@ class ESP32DeviceBase(Openable):
                 .upper()
                 .encode()
             )
-            command_bytes += b"\n"
             start_time_ns = time.perf_counter_ns()
-            await self.esp32_write(command_bytes)
+            await self.esp32_write(b"\x02" + command_bytes + b"\x00")
             try:
                 response = await asyncio.wait_for(response_future, self.timeout_s)
             except TimeoutError as e:
