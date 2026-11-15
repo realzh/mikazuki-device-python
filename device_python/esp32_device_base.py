@@ -14,13 +14,14 @@ class ESP32DeviceBase(Openable):
 
     def __init__(self):
         super().__init__()
-        self.timeout_s = 1
-        self.heartbeat_interval_s = 2
+        self.timeout_s = 10
+        self.heartbeat_interval_s = 10
         self.lock = asyncio.Lock()
         self.pending_commands: dict[str, asyncio.Future[dict]] = {}
         self.channel: None | str = None
         self.system_info = {}
         self.on_event_callbacks = set[Async]()
+        self.serial_number = ""
 
     async def esp32_readline(self) -> bytes:
         raise NotImplementedError()
@@ -123,7 +124,7 @@ class ESP32DeviceBase(Openable):
             response_future = asyncio.Future[dict]()
             self.pending_commands[request_id] = response_future
             if print_log:
-                print(f"esp32 > {command_str}")
+                print(f"esp32 > [{self.serial_number}] {command_str}")
 
             command_bytes = command_str.encode()
             command_bytes += (
@@ -138,10 +139,14 @@ class ESP32DeviceBase(Openable):
             try:
                 response = await asyncio.wait_for(response_future, self.timeout_s)
             except TimeoutError as e:
+                print(f"esp32 | [{self.serial_number}] command response timeout")
                 raise TimeoutError("ESP32 command response timeout") from e
             stop_time_ns = time.perf_counter_ns()
+            esp32_response_time = (stop_time_ns - start_time_ns) / 1e9
             if print_log:
-                print(f"esp32 | {response}")
+                print(
+                    f"esp32 | [{self.serial_number}, {esp32_response_time:.3f} s, {len(json.dumps(response))}] {response}"
+                )
             response["esp32_response_time"] = (stop_time_ns - start_time_ns) / 1e9
             success = response.get("success")
             if assert_success and not success:

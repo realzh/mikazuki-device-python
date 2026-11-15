@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import time
 import traceback
 import typing
 from collections.abc import Awaitable, Callable
@@ -156,21 +157,31 @@ class WSDevice(Openable):
             request_id = message.get("request_id")
 
             if request_id and action == "request" and name:
+                start_time_ns = time.perf_counter_ns()
                 try:
                     result = await self.on_request(name, message)
+                    stop_time_ns = time.perf_counter_ns()
                     await self.send(
-                        {"request_id": request_id, "success": True, "result": result}
+                        {
+                            "request_id": request_id,
+                            "success": True,
+                            "result": result,
+                            "ws_request_processing_time": (stop_time_ns - start_time_ns)
+                            / 1e9,
+                        }
                     )
                 except Exception as e:
                     traceback.print_exc()
                     stacktrace = traceback.format_exc()
-
+                    stop_time_ns = time.perf_counter_ns()
                     await self.send(
                         {
                             "request_id": request_id,
                             "success": False,
                             "reason": str(e),
                             "stacktrace": str(stacktrace),
+                            "ws_request_processing_time": (stop_time_ns - start_time_ns)
+                            / 1e9,
                         }
                     )
 

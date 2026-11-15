@@ -92,7 +92,7 @@ class MacHubWSDevice(WSDevice):
         results = await asyncio.gather(*opened_tasks, return_exceptions=True)
         errors = [r for r in results if isinstance(r, Exception)]
         await self.set_state(
-            "esp32_devices", [x.device_id for x in self.esp32_ws_devices]
+            "esp32_devices_opened", [x.device_id for x in self.esp32_ws_devices]
         )
         return opened_devices
 

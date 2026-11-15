@@ -36,6 +36,8 @@ class ESP32DeviceBLE(ESP32DeviceBase):
     async def on_ble_notify(self, sender, data: bytearray):
         try:
             self.stream_reader.feed_data(bytes(data))
+            packet_data = str(bytes(data), encoding="utf8")
+            print(f"ble | [notify, {len(packet_data)}] {packet_data}")
         except:
             traceback.print_exc()
 
@@ -47,7 +49,7 @@ class ESP32DeviceBLE(ESP32DeviceBase):
             self.address, disconnected_callback=self.on_ble_disconnected
         )
         await self.ble_client.connect()
-        self.ble_char = self.ble_client.services.get_characteristic("ABF1")
+        self.ble_char = self.ble_client.services.get_characteristic("AB01")
         assert self.ble_char is not None
         assert "write" in self.ble_char.properties
         assert "indicate" in self.ble_char.properties
