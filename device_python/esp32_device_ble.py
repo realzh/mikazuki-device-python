@@ -5,6 +5,9 @@ import bleak
 import bleak.exc
 
 from device_python.esp32_device_base import ESP32DeviceBase
+from device_python.log import bytes_to_str, get_logger
+
+logger = get_logger("esp32_device_ble")
 
 
 class ESP32DeviceBLE(ESP32DeviceBase):
@@ -36,10 +39,9 @@ class ESP32DeviceBLE(ESP32DeviceBase):
     async def on_ble_notify(self, sender, data: bytearray):
         try:
             self.stream_reader.feed_data(bytes(data))
-            packet_data = str(bytes(data), encoding="utf8")
-            print(f"ble | [notify, {len(packet_data)}] {packet_data}")
+            logger.debug("ble_notify", data=bytes_to_str(data))
         except:
-            traceback.print_exc()
+            logger.exception()
 
     def on_ble_disconnected(self, bleak_client):
         self.stream_reader.feed_eof()
@@ -67,6 +69,7 @@ class ESP32DeviceBLE(ESP32DeviceBase):
         return line
 
     async def esp32_write(self, data: bytes):
+        logger.debug("esp32_write", data=bytes_to_str(data))
         assert self.ble_char is not None
         offset = 0
         retry = 0
@@ -81,12 +84,15 @@ class ESP32DeviceBLE(ESP32DeviceBase):
                 retry = 0
             except bleak.exc.BleakGATTProtocolError as e:
                 if e.code == 0x84:
-                    print("esp32 + GATT_BUSY")
+                    logger.warn(
+                        "esp32_gatt_busy", retry=retry, chunk=bytes_to_str(chunk)
+                    )
                     retry += 1
                     if retry >= 3:
                         raise
                     await asyncio.sleep(0.1)
                     continue
                 else:
+                    logger.warn('esp32_gatt_busy_max_retry')
                     raise
             offset += len(chunk)

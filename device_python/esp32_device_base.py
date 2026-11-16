@@ -8,6 +8,9 @@ import zlib
 
 from device_python.openable import Openable
 from device_python.types import Async
+from device_python.log import get_logger
+
+logger = get_logger("esp32_device_base")
 
 
 class ESP32DeviceBase(Openable):
@@ -43,14 +46,14 @@ class ESP32DeviceBase(Openable):
                 await self.send_command("nvs_get", {"key": "device_name"})
             )["result"]["value"]
         except:
-            traceback.print_exc()
+            logger.exception()
         try:
             system_info = (await self.send_command("system_state_get"))["result"]
             self.system_info["app_version"] = system_info["app_version"]
             self.system_info["build_time"] = system_info["build_time"]
             self.system_info["project_name"] = system_info["project_name"]
         except:
-            traceback.print_exc()
+            logger.exception()
         if self.channel is not None:
             self.system_info["channel"] = self.channel
 
@@ -77,16 +80,16 @@ class ESP32DeviceBase(Openable):
                 json_dict = json.loads(json_str)
                 assert isinstance(json_dict, dict)
             except Exception:
-                traceback.print_exc()
+                logger.exception()
                 continue
             type = json_dict.get("type")
             if type == "response":
                 request_id = json_dict.get("request_id")
                 if not isinstance(request_id, str):
-                    print("request_id not found in response")
+                    logger.warning("request_id not found in response")
                     continue
                 if request_id not in self.pending_commands:
-                    print(f"response {request_id} not pending")
+                    logger.warning(f"response {request_id} not pending")
                     continue
                 pending_command = self.pending_commands.pop(request_id)
                 pending_command.set_result(json_dict)
@@ -97,20 +100,20 @@ class ESP32DeviceBase(Openable):
                     except:
                         pass
             else:
-                print(f"unknown type {type}")
+                logger.warning(f"unknown type {type}")
 
     async def task_heartbeat(self):
         while True:
             try:
-                await self.send_command("echo", {"value": "hearbeat"}, print_log=False)
+                await self.send_command("echo", {"value": "hearbeat"})
                 await asyncio.sleep(self.heartbeat_interval_s)
             except:
-                print(f"Device {self.serial_number} hearbeat timeout")
+                logger.warn("Hearbeat timeout", serial_number=self.serial_number)
                 await self.close()
                 break
 
     async def send_command(
-        self, name: str, params: dict | None = None, assert_success=True, print_log=True
+        self, name: str, params: dict | None = None, assert_success=True
     ):
         assert self.has_opened and not self.has_closed
         async with self.lock:
@@ -123,9 +126,11 @@ class ESP32DeviceBase(Openable):
             command_str = json.dumps(command, separators=(",", ":"))
             response_future = asyncio.Future[dict]()
             self.pending_commands[request_id] = response_future
-            if print_log:
-                print(f"esp32 > [{self.serial_number}] {command_str}")
-
+            logger.debug(
+                "esp32_send_command",
+                device_serial_number=self.serial_number,
+                command=command,
+            )
             command_bytes = command_str.encode()
             command_bytes += (
                 zlib.crc32(command_bytes)
@@ -139,15 +144,20 @@ class ESP32DeviceBase(Openable):
             try:
                 response = await asyncio.wait_for(response_future, self.timeout_s)
             except TimeoutError as e:
-                print(f"esp32 | [{self.serial_number}] command response timeout")
+                logger.warn(
+                    "esp32_command_response_timeout",
+                    command=command,
+                    serial_number=self.serial_number,
+                    timeout=self.timeout_s,
+                )
                 raise TimeoutError("ESP32 command response timeout") from e
             stop_time_ns = time.perf_counter_ns()
-            esp32_response_time = (stop_time_ns - start_time_ns) / 1e9
-            if print_log:
-                print(
-                    f"esp32 | [{self.serial_number}, {esp32_response_time:.3f} s, {len(json.dumps(response))}] {response}"
-                )
             response["esp32_response_time"] = (stop_time_ns - start_time_ns) / 1e9
+            logger.debug(
+                "esp32_receive_response",
+                device_serial_number=self.serial_number,
+                response=response,
+            )
             success = response.get("success")
             if assert_success and not success:
                 raise Exception(

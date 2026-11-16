@@ -7,8 +7,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from device_python.log import get_logger
 from device_python.openable import Openable
 from device_python.ws_connection import WSConnection
+
+logger = get_logger("ws_device")
+
 
 action_index = 0
 
@@ -64,7 +68,7 @@ class WSDevice(Openable):
 
     async def on_open(self):
         assert self.device_id is not None
-        print(f"Device {self.device_id} open")
+        logger.info(f"device_open", device_id=self.device_id)
         self.tasks.add(asyncio.create_task(self.task_on_message()))
         self.ws_connection.message_listeners.add(self.on_message)
         await self.send({"action": "register"})
@@ -72,7 +76,7 @@ class WSDevice(Openable):
         await self.send_action_definitions()
 
     async def on_close(self):
-        print(f"Device {self.device_id} close")
+        logger.info(f"device_close", device_id=self.device_id)
         try:
             await self.send({"action": "unregister"})
         except:
@@ -138,7 +142,6 @@ class WSDevice(Openable):
 
     async def on_message(self, message: dict):
         if not isinstance(message, dict):
-            print(f"message {message} is not dict")
             return
 
         type = message.get("type")
@@ -171,9 +174,11 @@ class WSDevice(Openable):
                         }
                     )
                 except Exception as e:
-                    traceback.print_exc()
                     stacktrace = traceback.format_exc()
                     stop_time_ns = time.perf_counter_ns()
+                    logger.warn(
+                        "on_request_fail", reason=str(e), stacktrace=str(stacktrace)
+                    )
                     await self.send(
                         {
                             "request_id": request_id,

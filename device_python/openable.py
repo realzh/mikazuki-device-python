@@ -2,7 +2,10 @@ import asyncio
 import traceback
 from typing import Self
 
+from device_python.log import get_logger
 from device_python.types import Async
+
+logger = get_logger("openable")
 
 
 class Openable:
@@ -37,7 +40,7 @@ class Openable:
             try:
                 await callback(self)
             except Exception:
-                traceback.print_exc()
+                logger.exception()
         await self.on_close()
 
     async def on_close(self):

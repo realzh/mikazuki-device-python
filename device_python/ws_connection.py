@@ -1,12 +1,13 @@
 import asyncio
 import json
-import traceback
-
 import websockets
 
 from device_python.openable import Openable
+from device_python import log
 
 from .types import Async
+
+logger = log.get_logger("ws_connection")
 
 
 class WSConnection(Openable):
@@ -17,29 +18,29 @@ class WSConnection(Openable):
         self.url = "ws://localhost:8000/api/ws"
         self.ws = await websockets.connect(self.url)
 
-        print(f"WSConnection to {self.url} open")
+        logger.info(f"WSConnection open", url=self.url)
         self.message_listeners = set[Async[dict, None]]()
 
         self.add_task(asyncio.create_task(self.task_receive()))
 
     async def close(self):
-        print(f"WSConnection to {self.url} close")
+        logger.info(f"WSConnection close", url=self.url)
         await super().close()
 
     async def send(self, message: dict):
+        logger.debug("send_message", message=message)
         message_json = json.dumps(message, ensure_ascii=False)
-        print(f"ws > {message_json}")
         await self.ws.send(message_json)
 
     async def task_receive(self):
         while True:
             message_json = await self.ws.recv()
-            print(f"ws | {message_json}")
             try:
                 message = json.loads(message_json)
                 assert isinstance(message, dict)
+                logger.debug("receive_message", message=message)
             except:
-                traceback.print_exc()
+                logger.exception("Invalid message")
                 continue
 
             listener_tasks = [

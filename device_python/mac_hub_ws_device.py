@@ -4,8 +4,11 @@ import traceback
 from device_python.esp32_device_ble import ESP32DeviceBLE
 from device_python.esp32_device_usb import ESP32DeviceUSB
 from device_python.esp32_ws_device import ESP32WSDevice
+from device_python.log import get_logger
 from device_python.ws_connection import WSConnection
 from device_python.ws_device import WSDevice, action
+
+logger = get_logger("mac_hub_ws_device")
 
 
 class MacHubWSDevice(WSDevice):
@@ -101,7 +104,7 @@ class MacHubWSDevice(WSDevice):
             try:
                 await self.open_esp32_devices()
             except:
-                traceback.print_exc()
+                logger.exception()
             await asyncio.sleep(1)
 
     @action

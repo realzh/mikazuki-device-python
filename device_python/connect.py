@@ -1,10 +1,15 @@
 import asyncio
-import traceback
+import logging
+
 
 from websockets import ConnectionClosed
 
 from device_python.mac_hub_ws_device import MacHubWSDevice
 from device_python.ws_connection import WSConnection
+
+from device_python import log
+
+logger = log.get_logger("connect")
 
 
 async def connect_to_server():
@@ -16,10 +21,13 @@ async def connect_to_server():
             await mac_hub.open()
             await asyncio.gather(*ws_connection.tasks)
 
-        except ConnectionClosed:
-            pass
+        except ConnectionClosed as e:
+            logger.debug("ws_closed", code=e.code, reason=e.reason)
         except Exception:
-            traceback.print_exc()
+            logger.exception("connection_error")
         finally:
-            await ws_connection.close()
+            try:
+                await ws_connection.close()
+            except Exception:
+                logger.exception("close_failed")
         await asyncio.sleep(1)
