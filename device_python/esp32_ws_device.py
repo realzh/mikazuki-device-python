@@ -21,12 +21,6 @@ class ESP32WSDevice(WSDevice):
         )
         self.esp32_device = esp32_device
         self.serial_number = serial_number
-        # self.sub_devices = set[Device]()
-        # self.feature_configs = {
-        #     "ws2812": {
-        #         "gpio_num": 38,
-        #     }
-        # }
 
     async def on_esp32_event(self, event: dict):
         name = event.get("name")
@@ -50,14 +44,10 @@ class ESP32WSDevice(WSDevice):
         actions_from_commands = await self.generate_actions_from_commands()
         self.actions.extend(actions_from_commands)
         await self.send_action_definitions()
-        # await self.create_devices_from_features()
 
     async def on_close(self):
         await super().on_close()
         await self.esp32_device.close()
-        # while self.sub_devices:
-        #     sub_device = self.sub_devices.pop()
-        #     await sub_device.close()
 
     async def generate_action_handler_from_command(self, command: dict):
 
@@ -95,37 +85,3 @@ class ESP32WSDevice(WSDevice):
 
             actions.append(action)
         return actions
-
-    # @action
-    # async def create_devices_from_features(self):
-    #     while self.sub_devices:
-    #         sub_device = self.sub_devices.pop()
-    #         await sub_device.close()
-    #     esp32_states: dict[str, bool] = (
-    #         await self.esp32_device.send_command("state_get_all")
-    #     )["result"]["states"]
-    #     features: list[str] = []
-    #     for key, value in esp32_states.items():
-    #         if key.startswith("feature_") and value == "true":
-    #             features.append(key[8:])
-
-    #     await self.set_state("features", features)
-
-    #     for feature in features:
-    #         if feature == "ws2812":
-    #             sub_device = WS2812(
-    #                 ws_connection=self.ws_connection,
-    #                 device_id=f"ws2812-{self.esp32_device.serial_number}",
-    #                 esp32_device=self.esp32_device,
-    #                 gpio_num=self.feature_configs["ws2812"]["gpio_num"],
-    #             )
-    #             await sub_device.open()
-    #             self.sub_devices.add(sub_device)
-
-    # @action
-    # async def feature_configs_get(self):
-    #     return self.feature_configs
-
-    # @action
-    # async def feature_configs_set(self, config: str):
-    #     self.feature_configs = json.loads(config)

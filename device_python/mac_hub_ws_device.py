@@ -1,5 +1,8 @@
 import asyncio
 import traceback
+import serial
+import serial.tools.list_ports
+
 
 from device_python.esp32_device_ble import ESP32DeviceBLE
 from device_python.esp32_device_usb import ESP32DeviceUSB
@@ -25,15 +28,15 @@ class MacHubWSDevice(WSDevice):
 
     async def on_open(self):
         await super().on_open()
-        await self.open_esp32_devices()
+        await self.esp32_device_open()
         self.tasks.add(asyncio.create_task(self.task_watch_connected_devices()))
 
     async def on_close(self):
         await super().on_close()
-        await self.close_all_esp32_devices()
+        await self.esp32_device_close_all()
 
     @action
-    async def open_esp32_devices(self):
+    async def esp32_device_open(self):
         discovered_devices = []
         discovered_devices.extend(await ESP32DeviceUSB.scan_devices())
         discovered_devices.extend(await ESP32DeviceBLE.scan_devices())
@@ -102,13 +105,35 @@ class MacHubWSDevice(WSDevice):
     async def task_watch_connected_devices(self):
         while True:
             try:
-                await self.open_esp32_devices()
+                await self.esp32_device_open()
             except:
                 logger.exception()
             await asyncio.sleep(1)
 
     @action
-    async def close_all_esp32_devices(self):
+    async def esp32_device_close_all(self):
         async with asyncio.TaskGroup() as tg:
             for esp32_ws_device in self.esp32_ws_devices.copy():
                 tg.create_task(esp32_ws_device.close())
+
+    @action
+    async def serial_port_get_connected_devices(self):
+        ports = list(serial.tools.list_ports.comports())
+        devices = []
+        for p in ports:
+            dev = {}
+            dev["device"] = p.device
+            dev["name"] = p.name
+            dev["description"] = p.description
+            dev["hwid"] = p.hwid
+            dev["vid"] = p.vid
+            dev["pid"] = p.pid
+            dev["serial_number"] = p.serial_number
+            dev["location"] = p.location
+            dev["manufacturer"] = p.manufacturer
+            dev["product"] = p.product
+            dev["interface"] = p.interface
+            dev["usb_description"] = p.usb_description()
+            dev["usb_info"] = p.usb_info()
+            devices.append(dev)
+        return devices

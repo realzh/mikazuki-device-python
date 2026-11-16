@@ -5,6 +5,7 @@ import logging
 from websockets import ConnectionClosed
 
 from device_python.mac_hub_ws_device import MacHubWSDevice
+from device_python.servo_gimbal import ServoGimBalWSDevice
 from device_python.ws_connection import WSConnection
 
 from device_python import log
@@ -19,6 +20,8 @@ async def connect_to_server():
             await ws_connection.open()
             mac_hub = MacHubWSDevice(ws_connection=ws_connection)
             await mac_hub.open()
+            servo_gimbal = ServoGimBalWSDevice(ws_connection=ws_connection)
+            await servo_gimbal.open()
             await asyncio.gather(*ws_connection.tasks)
 
         except ConnectionClosed as e:

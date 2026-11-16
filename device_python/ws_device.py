@@ -210,16 +210,11 @@ class WSDevice(Openable):
                 else:
                     continue
             param_value = parameters[param_def.name]
-            if param_def.type_class:
-                if not isinstance(param_value, param_def.type_class):
-                    raise Exception(
-                        f"param {param_def.name} is not type {param_def.type_class}"
-                    )
-            else:
-                if not parameter_type_check(param_def.type, param_value):
-                    raise Exception(
-                        f"param {param_def.name} is not type {param_def.type}"
-                    )
+
+            if not parameter_type_check(param_def.type, param_value):
+                raise Exception(
+                    f"param {param_def.name} is not type {param_def.type}"
+                )
             params[param_def.name] = param_value
         result = await action_def.handler(**params)
         return result
