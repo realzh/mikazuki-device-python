@@ -1,7 +1,10 @@
 import logging
+import os
 import structlog
 import datetime
 import atexit
+
+os.makedirs("log", exist_ok=True)
 
 start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
