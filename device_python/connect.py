@@ -6,20 +6,6 @@ from websockets import ConnectionClosed
 from device_python.mac_hub_ws_device import MacHubWSDevice
 from device_python.ws_connection import WSConnection
 
-# from device_python.esp32_ws_device import create_esp32_ws_devices
-
-# async def create_singleton_devices(ws_connection: WSConnection):
-#     devices = []
-#     singleton_device_classes: list[type[Device]] = [DP100, Flameeye, ADB]
-#     for SignletonDevice in singleton_device_classes:
-#         device = await ws_connection.context.enter_async_context(
-#             SignletonDevice(
-#                 ws_connection=ws_connection,
-#                 device_id=f"{SignletonDevice.__name__.lower()}-0",
-#             )
-#         )
-#         devices.append(device)
-
 
 async def connect_to_server():
     while True:
