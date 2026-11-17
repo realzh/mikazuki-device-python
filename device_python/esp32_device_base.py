@@ -105,10 +105,10 @@ class ESP32DeviceBase(Openable):
     async def task_heartbeat(self):
         while True:
             try:
-                await self.send_command("echo", {"value": "hearbeat"})
+                await self.send_command("echo", {"value": "heartbeat"})
                 await asyncio.sleep(self.heartbeat_interval_s)
             except:
-                logger.warn("Hearbeat timeout", serial_number=self.serial_number)
+                logger.warn("Heartbeat timeout", serial_number=self.serial_number)
                 await self.close()
                 break
 
