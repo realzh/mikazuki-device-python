@@ -19,12 +19,21 @@ class ServoGimBalWSDevice(WSDevice):
         self.command_lock = asyncio.Lock()
 
     @action
-    async def serial_port_open(self, serial_port: str, baudrate: int = 115200):
+    async def serial_port_open(self, serial_port: str = "", baudrate: int = 115200):
+        if serial_port == "":
+            try:
+                config_serial_port = config.read("servo_gimbal.serial_port")
+                assert isinstance(config_serial_port, str)
+                serial_port = config_serial_port
+            except:
+                pass
+        assert serial_port != ""
         self.serial = await asyncio.to_thread(
             serial.Serial, serial_port, baudrate=baudrate
         )
         logger.info("open_serial", port=serial_port)
         await self.set_state("serial", serial_port)
+        await self.set_state("connected", "true")
         config.write("servo_gimbal.serial_port", serial_port)
 
     @action
@@ -33,17 +42,19 @@ class ServoGimBalWSDevice(WSDevice):
             self.serial.close()
             logger.info("close_serial", port=self.serial.portstr)
             self.serial = None
-            await self.set_state("serial", None)
+            await self.set_state("serial", "not_connected")
+            await self.set_state("connected", "false")
+            await self.set_state("pan", "unknown")
+            await self.set_state("tilt", "unknown")
 
     async def on_open(self):
         await super().on_open()
+        await self.set_state("connected", "false")
         try:
-            config_serial_port = config.read("servo_gimbal.serial_port")
-            assert isinstance(config_serial_port, str)
-            await self.serial_port_open(config_serial_port)
+            await self.serial_port_open()
         except:
             pass
-        self.tasks.add(asyncio.create_task(self.task_update_state()))
+        self.tasks.add(asyncio.create_task(self.task_heartbeat()))
 
     async def on_close(self):
         await super().on_close()
@@ -83,17 +94,19 @@ class ServoGimBalWSDevice(WSDevice):
         for k, v in pos.items():
             await self.set_state(k, v)
 
-    async def task_update_state(self):
+    async def task_heartbeat(self):
         while True:
             try:
                 if self.serial and self.serial.is_open:
                     await self.update_position()
             except:
-                pass
+                await self.serial_port_close()
             await asyncio.sleep(0.2)
 
     @action
     async def move(self, pan: float, tilt: float):
+        assert -180 <= pan <= 180
+        assert -90 <= tilt <= 90
         pan_pos = math.floor(pan / 360 * 2000 + 1500)
         tilt_pos = math.floor(tilt / 270 * 2000 + 1500)
         await self.send_servo_command(f"#001P{pan_pos}", receive_response="false")
